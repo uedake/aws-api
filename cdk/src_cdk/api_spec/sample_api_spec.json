@@ -1,0 +1,73 @@
+{
+    "name": "sample-api",
+    "stage": {
+        "$default": {
+            "branch": "master",
+            "bucket": "{$account}-{$api}"
+        },
+        "dev": {
+            "branch": "dev",
+            "bucket": "{$account}-{$api}"
+        },
+        "test": {
+            "branch": "test",
+            "bucket": "{$account}-{$api}-test"
+        }
+    },
+    "s3": {
+        "{$account}-{$api}": {
+            "public_read": true,
+            "website_hosting": true
+        },
+        "{$account}-{$api}-test": {
+            "public_read": false
+        }
+    },
+    "apigw": {
+        "description": "api for calling sample lambdas",
+        "route": {
+            "s3_access": [
+                "ANY /s3_access/{z}",
+                "ANY /s3_access"
+            ],
+            "echo": [
+                "ANY /echo/{path1}/{path2}",
+                "ANY /echo/{path1}",
+                "ANY /echo"
+            ]
+        }
+    },
+    "sqs_for_lambda": {
+        "echo": {
+            "additional_timeout": 60
+        }
+    },
+    "lambda_func": {
+        "s3_access": {
+            "code": "src_lambda/sample/s3_access/src",
+            "test": "src_lambda/sample/s3_access/test/test.json",
+            "timeout": 10
+        },
+        "echo": {
+            "code": "src_lambda/sample/echo/src",
+            "test": "src_lambda/sample/s3_access/test/test.json",
+            "timeout": 3
+        },
+        "called_by_batch": {
+            "code": "src_lambda/sample/called_by_batch/src",
+            "timeout": 3
+        }
+    },
+    "vpc_for_batch": {
+        "subnet_id_list": [],
+        "security_group_id": ""
+    },
+    "batch_func": {
+        "convert": {
+            "queue_state_lambda": "called_by_batch",
+            "maxv_cpus": 40,
+            "memory": 8192,
+            "vcpu": 4
+        }
+    }
+}

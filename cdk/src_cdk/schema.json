@@ -1,0 +1,201 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "title": "API config Validation",
+    "description": "use to chack API config is valid",
+    "type": "object",
+    "additionalProperties": false,
+    "required": [
+        "name"
+    ],
+    "properties": {
+        "name": {
+            "type": "string",
+            "pattern": "^[A-z0-9-]+$"
+        },
+        "stage": {
+            "$ref": "#/$defs/stage_dict"
+        },
+        "s3": {
+            "$ref": "#/$defs/s3_dict"
+        },
+        "apigw": {
+            "$ref": "#/$defs/apigw"
+        },
+        "sqs_for_lambda": {
+            "$ref": "#/$defs/sqs_dict"
+        },
+        "lambda_func": {
+            "$ref": "#/$defs/lambda_dict"
+        },
+        "batch_func": {
+            "$ref": "#/$defs/batch_dict"
+        },
+        "vpc_for_batch": {
+            "$ref": "#/$defs/vpc"
+        }
+    },
+    "$defs": {
+        "stage_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^\\$?[A-z0-9]+$": {
+                    "$ref": "#/$defs/stage"
+                }
+            }
+        },
+        "stage": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "branch"
+            ],
+            "properties": {
+                "branch": {
+                    "type": "string"
+                },
+                "bucket": {
+                    "type": "string",
+                    "pattern": "^[A-z0-9-\\.]+$"
+                }
+            }
+        },
+        "s3_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-Za-z0-9-\\.]+$": {
+                    "$ref": "#/$defs/s3"
+                }
+            }
+        },
+        "s3": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "public_read": {
+                    "type": "boolean"
+                },
+                "website_hosting": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "apigw": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "route"
+            ],
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "route": {
+                    "$ref": "#/$defs/route_dict"
+                }
+            }
+        },
+        "route_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "sqs_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "$ref": "#/$defs/sqs"
+                }
+            }
+        },
+        "sqs": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "additional_timeout": {
+                    "type": "number"
+                }
+            }
+        },
+        "lambda_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "$ref": "#/$defs/lambda"
+                }
+            }
+        },
+        "lambda": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "test": {
+                    "type": "string"
+                },
+                "timeout": {
+                    "type": "number"
+                }
+            }
+        },
+        "batch_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "$ref": "#/$defs/batch"
+                }
+            }
+        },
+        "batch": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "queue_state_lambda": {
+                    "type": "string",
+                    "pattern": "^[A-z0-9_]+$"
+                },
+                "maxv_cpus": {
+                    "type": "number"
+                },
+                "memory": {
+                    "type": "number"
+                },
+                "vcpu": {
+                    "type": "number"
+                }
+            }
+        },
+        "vpc": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "subnet_id_list",
+                "security_group_id"
+            ],
+            "properties": {
+                "subnet_id_list": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "security_group_id": {
+                    "type": "string"
+                }
+            }
+        }
+    }
+}
