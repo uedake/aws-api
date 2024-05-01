@@ -2,7 +2,7 @@
     "name": "sample-api",
     "stage": {
         "$default": {
-            "branch": "master",
+            "branch": "main",
             "bucket": "{$account}-{$api}"
         },
         "dev": {
