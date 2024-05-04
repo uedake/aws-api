@@ -9,12 +9,13 @@ https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
 
 本イメージを用いると例えば、python 3.12用のLambdaレイヤーを作成可能です
 
-## 使い方
+
+## Lambdaレイヤー作成方法
 
 1. イメージをビルド
 
 ```
-cd path/to/directory
+cd lambda_layer/docker
 docker build -t al2023py .
 ```
 
@@ -31,4 +32,22 @@ Lambdaレイヤーはlayer.zipという名称で指定のフォルダに出力�
 
 ```
 docker run --rm -v $(pwd):/dist al2023py 3.12.3 pandas
+```
+
+## Lambdaレイヤーアップロード方法
+
+### (推奨)uploadスクリプトを使用する場合
+
+uploadスクリプトは同名レイヤーの最新バージョンとzipファイルのhashが一致する場合、アップロードをキャンセルします
+（ただし、Lambdaレイヤーのzipはまったく同じパラメータで作成しても作成するたびにhashが異なります）
+
+```
+cd lambda_layer
+python .\upload.py .\sample\3.12.3_numpy_numpy-quaternion\layer.zip numpy_numpy-quaternion python3.12
+```
+
+### aws cliを使用する場合
+
+```
+aws lambda publish-layer-version --zip-file fileb://.\sample\3.12.3_numpy_numpy-quaternion\layer.zip --layer-name numpy_numpy-quaternion --compatible-runtimes '[\"python3.12\"]' --compatible-architectures '[\"x86_64\"]'
 ```
