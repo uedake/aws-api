@@ -7,6 +7,7 @@ from pprint import pprint
 
 try:
     from mypy_boto3_ecr import ECRClient
+    from mypy_boto3_lambda import LambdaClient
 except Exception:
     # fallback if import failed:
     print("mypy_boto3 not found")
