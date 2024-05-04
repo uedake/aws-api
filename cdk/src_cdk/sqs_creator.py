@@ -8,21 +8,22 @@ class SQSCreator:
     def __init__(
         self,
         scope: Stack,
-        queue_prefix: str,
+        waiting_queue_name: str,
+        dead_queue_name: str,
         *,
         visibility_timeout_sec: int | None,
     ) -> None:
         self.scope = scope
         self.dead_queue = Queue(
             self.scope,
-            queue_prefix + "_dead",
-            queue_name=queue_prefix + "_dead",
+            dead_queue_name,
+            queue_name=dead_queue_name,
         )
 
         self.queue = Queue(
             self.scope,
-            queue_prefix + "_waiting",
-            queue_name=queue_prefix + "_waiting",
+            waiting_queue_name,
+            queue_name=waiting_queue_name,
             visibility_timeout=(
                 Duration.seconds(visibility_timeout_sec)
                 if visibility_timeout_sec is not None

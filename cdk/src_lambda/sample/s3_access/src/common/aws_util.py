@@ -11,6 +11,7 @@ from enum import Enum
 from typing import Any
 
 import boto3
+
 try:
     from mypy_boto3_s3 import S3Client, S3ServiceResource
 except Exception:
@@ -58,51 +59,60 @@ class WebApiException(BaseException):
 
 
 class ApiGatewayEventAnalyzer:
+    """
+    params_dictは下記のフォーマットで記述
+    {
+        param_name_1: {
+            "where": （"path"もしくは"query"もしくは"body"もしくは"sqs"）,
+            "required": （TrueもしくはFalse）,
+            "default": （デフォルト値を指定）,
+            "type": [（型1）,（型2）,・・・略],
+            "options": {（オプションを指定）}
+        },
+        param_name_2: {
+            ・・・略
+        },
+        ・・・略
+    }
+    - typeの指定
+      - whereが"path"もしくは"query"の場合、指定不要です（必ず[str]と見做されます）
+      - whereが"body"もしくは"sqs"の場合、文字列がJSONとしてパースされた結果得られる辞書におけるキー／バリューについて、
+        バリューとして許す型を記載します（バリデーション用）
+    - requiredの指定
+      - 指定しない場合、Falseと見做します
+      - Trueとした場合、paramが存在しないと例外をスローします
+      - Falseとした場合、paramが存在しない場合にはdefaultで指定した値がparamの値として返されます
+      - defaultを指定しない場合、存在しないparamの値はNoneになります
+    - optionsの指定
+      - 型の変換ができます
+      - 例えば、whereが"path"もしくは"query"の場合、全てのパラメータはstr型として解釈されますが、
+        optionsに{"convert_to_boolean":True}や{"convert_to_int":True}を指定することでboolean型やint型に変換できます
+    """
+
     def __init__(self, event: dict):
         self.event = event
 
-    def solve_params(self, params_dict: dict) -> dict:
-        # params_dictは下記のフォーマットで記述
-        # {
-        #     param_name_1: {
-        #         "where": （"path"もしくは"query"もしくは"body"）,
-        #         "required": （TrueもしくはFalse）,
-        #         "default": （デフォルト値を指定）,
-        #         "type": [（型1）,（型2）,・・・略],
-        #         "options": {（オプションを指定）}
-        #     },
-        #     param_name_2: {
-        #         ・・・略
-        #     },
-        #     ・・・略
-        # }
-        # ・typeの指定
-        #  ・whereが"path"もしくは"query"の場合、指定不要です（必ず[str]と見做されます）
-        #  ・whereが"body"の場合、bodyにセットされたJSON文字列がパースされた結果得られる辞書におけるキー／バリューについて、
-        # 　バリューとして許す型を記載します（バリデーション用）
-        # ・requiredの指定
-        #  ・指定しない場合、Falseと見做します
-        #  ・Trueとした場合、paramが存在しないと例外をスローします
-        #  ・Falseとした場合、paramが存在しない場合にはdefaultで指定した値がparamの値として返されます
-        # 　・defaultを指定しない場合、存在しないparamの値はNoneになります
-        # ・optionsの指定
-        #  ・型の変換ができます
-        #  ・例えば、whereが"path"もしくは"query"の場合、全てのパラメータはstr型として解釈されますが、
-        #    optionsに{"convert_to_boolean":True}や{"convert_to_int":True}を指定することでboolean型やint型に変換できます
+    def solve_http_params(self, params_dict: dict) -> dict:
+        """
+        whereが"path"・"query"・"body"で指定されているパラメータを取り出します
+        """
+
+        print("solve_http_params called:")
+        print("pathParameters= {}".format(self.event.get("pathParameters")))
+        print(
+            "queryStringParameters= {}".format(self.event.get("queryStringParameters"))
+        )
+        print("body= {}".format(self.event.get("body")))
 
         if "body" in self.event:
-            if isinstance(self.event["body"], dict):  # decode済みの場合
-                post_data = self.event["body"]
-            else:
-                post_data = json.loads(self.event["body"])
+            # if isinstance(self.event["body"], dict):  # decode済みの場合
+            #     post_data = self.event["body"]
+            # else:
+            post_data = json.loads(self.event["body"])
         else:
             post_data = {}
-        params = {}
 
-        print("solve_params called:")
-        print("path= {}".format(self.event.get("pathParameters")))
-        print("query= {}".format(self.event.get("queryStringParameters")))
-        print("body= {}".format(post_data))
+        params = {}
 
         for key, spec in params_dict.items():
             options = spec["options"] if "options" in spec else {}
@@ -125,6 +135,37 @@ class ApiGatewayEventAnalyzer:
                 )
             params[key] = value
         return params
+
+    def solve_sqs_params_list(self, params_dict: dict) -> list[dict]:
+        """
+        whereが"sqs"で指定されているパラメータを取り出します
+        """
+        print("solve_sqs_params_list called:")
+        print("Records= {}".format(self.event.get("Records")))
+
+        params_list = []
+        if "Records" in self.event:
+            print("{} records received".format(len(self.event["Records"])))
+
+            for record in self.event["Records"]:
+                sqs_data = json.loads(record["body"])
+                params = {}
+                for key, spec in params_dict.items():
+                    options = spec["options"] if "options" in spec else {}
+                    if spec["required"]:
+                        options["raise_if_absent"] = True
+
+                    if spec["where"] == "sqs":
+                        value = self._get_param_value(
+                            sqs_data,
+                            key,
+                            spec.get("type"),
+                            spec.get("default"),
+                            **options,
+                        )
+                    params[key] = value
+                params_list.append(params)
+        return params_list
 
     @staticmethod
     def _get_param_value(
@@ -609,3 +650,68 @@ class S3Access:
 
         # e.g. fuga/test.txt
         return S3Access(bucket_for_path, url_or_path)
+
+
+class SqsAccess:
+    ENDPOINT_URL = "https://sqs.ap-northeast-1.amazonaws.com"
+
+    def __init__(
+        self, queue_name: str, account: str | None = None, region: str | None = None
+    ):
+
+        self.endpoint_url = "https://sqs.{}.amazonaws.com".format(
+            region if region is not None else os.environ["AWS_REGION"]
+        )
+        self.queue_url = "{}/{}/{}".format(
+            self.endpoint_url,
+            (
+                account
+                if account is not None
+                else boto3.client("sts").get_caller_identity()["Account"]
+            ),
+            queue_name,
+        )
+        self.client = boto3.client("sqs", endpoint_url=self.endpoint_url)
+
+    def send_json_message(self, message_dict: dict) -> dict:
+        return self.client.send_message(
+            QueueUrl=self.queue_url, MessageBody=json.dumps(message_dict)
+        )
+
+
+class LambdaAccess:
+    def __init__(
+        self, lambda_name: str, account: str | None = None, region: str | None = None
+    ):
+        self.client = boto3.client("lambda")
+        self.func_arn = "arn:aws:lambda:{}:{}:function:{}".format(
+            region if region is not None else os.environ["AWS_REGION"],
+            (
+                account
+                if account is not None
+                else boto3.client("sts").get_caller_identity()["Account"]
+            ),
+            lambda_name,
+        )
+
+    def invoke(self, *, body_dict: dict | None = None, query_dict: dict | None = None):
+        payload = {}
+        if body_dict is not None:
+            payload["body"] = json.dumps(body_dict)
+        if query_dict is not None:
+            payload["queryStringParameters"] = query_dict
+
+        response = self.client.invoke(
+            FunctionName=self.func_arn,
+            InvocationType="RequestResponse",
+            LogType="Tail",
+            Payload=json.dumps(payload),
+        )
+
+        return json.load(response["Payload"])
+
+    [staticmethod]
+    def from_default(func_name: str) -> LambdaAccess:
+        api_name = os.environ["API"]
+        branch = os.environ["Branch"]
+        return LambdaAccess(f"{api_name}-{branch}-{func_name}")

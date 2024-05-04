@@ -9,29 +9,16 @@ from common.aws_util import (
 )
 
 _param_spec = {
-    "x": {
-        "where": "body",
-        "required": False,
-        "default": 0,
-    },
-    "y": {
+    "msg": {
         "where": "query",
         "required": False,
-        "default": 0,
-        "options": {
-            "convert_to_float": True,
-        },
-    },
-    "z": {
-        "where": "path",
-        "required": False,
-        "default": 0,
-        "options": {
-            "convert_to_float": True,
-        },
     },
     "s3PathRead": {
         "where": "query",
+        "required": False,
+    },
+    "data": {
+        "where": "body",
         "required": False,
     },
 }
@@ -40,7 +27,7 @@ _param_spec = {
 def lambda_handler(event, context):
     try:
         api = ApiGatewayEventAnalyzer(event)
-        params = api.solve_params(_param_spec)
+        params = api.solve_http_params(_param_spec)
         print("params:")
         print(params)
 
@@ -58,12 +45,10 @@ def lambda_handler(event, context):
                 downloaded_content = None
 
         outputDict = {
-            "x": params["x"],
-            "y": params["y"],
-            "z": params["z"],
+            "msg": params["msg"],
+            "data": params["data"],
             "s3PathRead": s3_path_read,
             "downloaded_content": downloaded_content,
-            "sum": params["x"] + params["y"] + params["z"],
         }
 
         if bucket is not None:

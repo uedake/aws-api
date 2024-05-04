@@ -147,6 +147,10 @@
                 },
                 "timeout": {
                     "type": "number"
+                },
+                "queue_next": {
+                    "type": "string",
+                    "pattern": "^[A-z0-9_]+$"
                 }
             }
         },

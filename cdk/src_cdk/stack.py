@@ -38,11 +38,21 @@ class APIStack(Stack):
     {lambda_func_name}はapi_spec["lambda_func"]のkey名が使用されます
 
     lambdaを実行する前に別途上記lambdaにコードをアップロードしておいてください
-    API全体に渡って共通のs3に各lambda中からアクセスすること場合、
-    アクセス先のバケット名を環境変数（Bucket）に指定しておくことができます
-    この環境変数はapi_spec["stage"]中でステージごとに定義可能です
-    api_spec["stage"]中で指定するs3のバケットは別途自分で作成したものを参照することもできますし、
-    このcdk中でapi_spec["s3"]を指定して作成することも可能です。
+
+    (補足) lambdaに設定される環境変数
+    - Bucket
+      - api_spec["stage"]中でステージごとに定義した値が設定されます
+      - API全体に渡って共通のs3に各lambda中からアクセスする場合に、
+        アクセス先のバケット名を指定しておくのに使用します
+      - s3のバケットは別途自分で作成したものを参照することもできますし、
+        このcdk中でapi_spec["s3"]を指定して作成することも可能です
+    - Branch
+      - branch_nameが設定されます
+    - API
+      - api_nameが設定されます
+    - NextSQS
+      - api_spec["lambda_func"]中でfuncごとに定義した値が設定されます
+      - このlambdaの処理が終わった後に実行して欲しいSQSのキュー名を指定するのに使用します
 
     ■AWS batchとECRの作成
     api_spec["batch_func"]及びapi_spec["vpc_for_batch"]に従って、AWS batchとECRを作成します
@@ -81,6 +91,8 @@ class APIStack(Stack):
 
     ENV_BUCKET_KEY = "Bucket"
     ENV_BRANCH_KEY = "Branch"
+    ENV_API_KEY = "API"
+    ENV_NEXT_SQS_KEY = "NextSQS"
 
     def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
         super().__init__(scope, construct_id, **kwargs)
@@ -164,6 +176,7 @@ class APIStack(Stack):
             # env for lambda
             env_dict = {
                 self.ENV_BRANCH_KEY: branch_name,
+                self.ENV_API_KEY: api_name,
             }
             if "bucket" in stage_spec:
                 env_dict[self.ENV_BUCKET_KEY] = stage_spec["bucket"]
@@ -181,7 +194,8 @@ class APIStack(Stack):
                     )
                     sqs_creator = SQSCreator(
                         self,
-                        queue_prefix,
+                        queue_prefix + "_waiting",
+                        queue_prefix + "_dead",
                         visibility_timeout_sec=base_timeout + additional_timeout,
                     )
                     lambda_to_queue[lambda_func_name] = sqs_creator.queue
@@ -193,6 +207,15 @@ class APIStack(Stack):
                     lambda_name = "{}-{}-{}".format(
                         api_name, branch_name, lambda_func_name
                     )
+                    additional_env_dict = (
+                        {
+                            self.ENV_NEXT_SQS_KEY: "{}-{}-{}_waiting".format(
+                                api_name, branch_name, lambda_spec["queue_next"]
+                            )
+                        }
+                        if "queue_next" in lambda_spec
+                        else {}
+                    )
 
                     lambda_creator = LambdaCreator(
                         self,
@@ -202,7 +225,7 @@ class APIStack(Stack):
                             if "code" in lambda_spec
                             else None
                         ),
-                        env_dict=env_dict,
+                        env_dict={**env_dict, **additional_env_dict},
                         test_schema_path=lambda_spec.get("test"),
                         timeout=lambda_spec.get("timeout"),
                         memory_size=lambda_spec.get("memory_size"),

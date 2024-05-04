@@ -98,7 +98,8 @@ class LambdaCreator:
         for name in [
             "service-role/AWSBatchServiceEventTargetRole",
             "service-role/AWSLambdaRole",
-            "service-role/AWSLambdaSQSQueueExecutionRole",
+            #"service-role/AWSLambdaSQSQueueExecutionRole", #SQSから呼ばれるのに必要だが、FullAccessがあれば不要
+            "AmazonSQSFullAccess", #他のSQSを呼ぶのに必要
             "AmazonS3FullAccess",
             "AmazonElasticFileSystemClientReadWriteAccess",
         ]:

@@ -26,8 +26,11 @@
     "apigw": {
         "description": "api for calling sample lambdas",
         "route": {
+            "pipeline_entry": [
+                "ANY /pipeline_entry",
+                "ANY /pipeline_entry/{z}"
+            ],
             "s3_access": [
-                "ANY /s3_access/{z}",
                 "ANY /s3_access"
             ],
             "echo": [
@@ -38,11 +41,24 @@
         }
     },
     "sqs_for_lambda": {
+        "pipeline_process": {
+            "additional_timeout": 10
+        },
         "echo": {
-            "additional_timeout": 60
+            "additional_timeout": 10
         }
     },
     "lambda_func": {
+        "pipeline_entry": {
+            "code": "src_lambda/sample/pipeline_entry/src",
+            "test": "src_lambda/sample/pipeline_entry/test/test.json",
+            "timeout": 3,
+            "queue_next": "pipeline_process"
+        },
+        "pipeline_process": {
+            "code": "src_lambda/sample/pipeline_process/src",
+            "timeout": 10
+        },
         "s3_access": {
             "code": "src_lambda/sample/s3_access/src",
             "test": "src_lambda/sample/s3_access/test/test.json",

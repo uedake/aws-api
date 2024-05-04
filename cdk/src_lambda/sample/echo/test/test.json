@@ -302,6 +302,9 @@
           "s3PathRead": {
             "type": "string"
           },
+          "msg": {
+            "type": "string"
+          },
           "y": {
             "type": "string"
           }
@@ -436,7 +439,7 @@
       }
     },
     "examples": {
-      "apigateway_test_xyz": {
+      "test_pipeline_entry": {
         "value": {
           "body": "{\"x\":1}",
           "resource": "/{proxy+}",
@@ -561,7 +564,7 @@
           }
         }
       },
-      "apigateway_test_s3Path": {
+      "test_s3_access": {
         "value": {
           "body": "{}",
           "resource": "/{proxy+}",
@@ -569,7 +572,8 @@
           "httpMethod": "POST",
           "isBase64Encoded": true,
           "queryStringParameters": {
-            "s3PathRead": "test_input.json"
+            "s3PathRead": "test_input.json",
+            "msg": "called from lambda test"
           },
           "multiValueQueryStringParameters": {
             "foo": [
