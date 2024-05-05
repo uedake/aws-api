@@ -17,7 +17,7 @@ from .docker_util import DockerClient
 
 class ECRUploader:
     def __init__(
-        self, image_name: str,*, account: str | None = None, region: str | None = None
+        self, image_name: str, *, account: str | None = None, region: str | None = None
     ):
 
         self.ecr_url = "{}.dkr.ecr.{}.amazonaws.com".format(
@@ -46,6 +46,7 @@ class ECRUploader:
         self.docker_client.images.push(tag)
 
     [staticmethod]
+
     def from_default_naming(api_name: str, func_name: str, branch_name: str):
         return ECRUploader("{}-{}:{}".format(api_name, func_name, branch_name))
 
@@ -65,8 +66,7 @@ class LambdaLayerUploader:
         return base64.b64encode(hashlib.sha256(binary).digest()).decode()
 
     def upload(
-        self,
-        zip_path: str,
+        self, zip_path: str, *, description: str | None = None, skip_same_description: bool = False
     ):
         ARCH = "x86_64"
 
@@ -89,14 +89,21 @@ class LambdaLayerUploader:
             print("-------------------")
             pprint(latest_version)
             print("-------------------")
-            hash = self.calc_hash(binary)
 
+            if skip_same_description and description is not None:
+                if latest_version["Description"]==description:
+                    print(
+                        "現行のレイヤーとdescriptionが一致したのでアップロードをキャンセルします"
+                    )
+                    return
+
+            hash = self.calc_hash(binary)
             layer_response = lambda_client.get_layer_version(
                 LayerName=self.layer_name, VersionNumber=latest_version["Version"]
             )
             if hash == layer_response["Content"]["CodeSha256"]:
                 print(
-                    "既存のレイヤーとhashが一致したのでアップロードをキャンセルします"
+                    "現行のレイヤーとhashが一致したのでアップロードをキャンセルします"
                 )
                 return
             else:
@@ -109,6 +116,7 @@ class LambdaLayerUploader:
             LayerName=self.layer_name,
             CompatibleRuntimes=[self.runtime],
             CompatibleArchitectures=[ARCH],
+            Description=description,
         )
 
         print("アップロードしました")
