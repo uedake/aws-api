@@ -5,6 +5,7 @@ from aws_cdk import Stack
 from aws_cdk.aws_lambda import Code
 
 from constructs import Construct
+from jsonschema import Draft202012Validator
 
 from .lambda_creator import LambdaCreator
 from .apigateway_creator import ApiGatewayCreator
@@ -13,7 +14,6 @@ from .ecr_creator import ECRCreator
 from .batch_creator import BatchCreator
 from .s3_creator import S3Creator
 
-from jsonschema import Draft202012Validator
 
 
 class APIStack(Stack):
@@ -261,16 +261,15 @@ class APIStack(Stack):
                         vcpu=batch_spec.get("vcpu"),
                     )
 
-    def create_sample(self):
+    def create_from_json(self, json_path):
         """
-        sample_api_spec.jsonから読み込んだapi_specを使用してAPIを構築します
-
-        sample_api_spec.json中で{$account}となっている箇所はAWSアカウント名で置換します
+        jsonによるAPI定義に従ってAWS上のリソースを構築します
+        jsonファイル中の下記は文字列置換されます
+        - {$account}: AWSアカウント名で置換します
+        - {$api}: jsonファイル中で定義するnameで置換します
         """
 
-        with open(
-            os.path.join(os.path.dirname(__file__), "api_spec", "sample_api_spec.json")
-        ) as f:
+        with open(json_path) as f:
             text = f.read()
             raw_api_spec: str = json.loads(text)
 
@@ -279,3 +278,14 @@ class APIStack(Stack):
             api_spec: str = json.loads(replaced_text)
 
         self.create(api_spec)
+
+    def create_sample(self):
+        """
+        sample_api_spec.jsonから読み込んだapi_specを使用してAPIを構築します
+        """
+
+        json_path = os.path.join(
+            os.path.dirname(__file__), "api_spec", "sample_api_spec.json"
+        )
+
+        self.create_from_json(json_path)

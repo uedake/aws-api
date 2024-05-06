@@ -1,4 +1,4 @@
-## AWS Lambdaレイヤー作成用イメージ
+# lambda_layer
 
 pythonランタイムのAWS Lambdaレイヤーを作成する為のdockerイメージです
 

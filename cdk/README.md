@@ -1,58 +1,74 @@
+# cdk
+cdkを使用してAWS上にWebAPIを構築するテンプレート
 
-# Welcome to your CDK Python project!
+## インストール
 
-This is a blank project for CDK development with Python.
+1. node.jsをインストール
 
-The `cdk.json` file tells the CDK Toolkit how to execute your app.
+- 下記からダウンロードしインストールする
+  - [ダウンロード](https://nodejs.org/en/download/)
 
-This project is set up like a standard Python project.  The initialization
-process also creates a virtualenv within this project, stored under the `.venv`
-directory.  To create the virtualenv it assumes that there is a `python3`
-(or `python` for Windows) executable in your path with access to the `venv`
-package. If for any reason the automatic creation of the virtualenv fails,
-you can create the virtualenv manually.
-
-To manually create a virtualenv on MacOS and Linux:
+2. cdkをglobalインストールする
 
 ```
-$ python -m venv .venv
+npm install -g aws-cdk
 ```
 
-After the init process completes and the virtualenv is created, you can use the following
-step to activate your virtualenv.
+3. pythob仮想環境を作成し依存関係をインストールする
 
-```
-$ source .venv/bin/activate
-```
+まず仮想環境（venv）を作成し仮想環境を有効化する
 
-If you are a Windows platform, you would activate the virtualenv like this:
-
+- windowsの場合
 ```
-% .venv\Scripts\activate.bat
+cd cdk
+py -m venv .venv
+.\.venv\Scripts\activate
 ```
 
-Once the virtualenv is activated, you can install the required dependencies.
-
+- linuxの場合
 ```
-$ pip install -r requirements.txt
-```
-
-At this point you can now synthesize the CloudFormation template for this code.
-
-```
-$ cdk synth
+cd cdk
+python -m venv .venv
+source .venv/bin/activate
 ```
 
-To add additional dependencies, for example other CDK libraries, just add
-them to your `setup.py` file and rerun the `pip install -r requirements.txt`
-command.
+仮想環境内にpipでインストール
 
-## Useful commands
+```
+pip install -r .\requirements.txt
+```
 
- * `cdk ls`          list all stacks in the app
- * `cdk synth`       emits the synthesized CloudFormation template
- * `cdk deploy`      deploy this stack to your default AWS account/region
- * `cdk diff`        compare deployed stack with current state
- * `cdk docs`        open CDK documentation
+## 使い方
 
-Enjoy!
+
+1. AWSにログインした状態にする
+
+- シングルサインオンを用いている場合
+```
+aws sso login
+```
+
+2. 仮想環境を有効化する
+
+- windowsの場合
+```
+cd cdk
+.\.venv\Scripts\activate
+```
+
+- linuxの場合
+```
+cd cdk
+source .venv/bin/activate
+```
+
+3. deployする
+```
+cdk deploy
+```
+
+注：過去にこのAWSアカウントでcdkを使用していない場合、一度下記を実行してからdeployを実行すること
+
+```
+cdk bootstrap
+```

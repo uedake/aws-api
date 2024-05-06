@@ -1,10 +1,9 @@
 import hashlib
 import base64
 import os
-
-import boto3
 from pprint import pprint
 
+import boto3
 try:
     from mypy_boto3_ecr import ECRClient
     from mypy_boto3_lambda import LambdaClient
