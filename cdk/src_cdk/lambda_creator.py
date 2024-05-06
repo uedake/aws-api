@@ -3,17 +3,13 @@ from __future__ import annotations
 from aws_cdk import Duration, Size, Stack
 from aws_cdk.aws_apigatewayv2 import CfnApi
 from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal
-from aws_cdk.aws_lambda import Code, FileSystem, Function, LayerVersion, Runtime
+from aws_cdk.aws_lambda import Code, FileSystem, Function, Runtime
 from aws_cdk.aws_eventschemas import CfnSchema
 from aws_cdk.aws_lambda_event_sources import SqsEventSource
 from aws_cdk.aws_sqs import Queue
 
 
 class LambdaCreator:
-    ##############################################
-    # backend settings: please set these values correctly according to your backend that is prepared by yourself
-    PYTHON_3_12_LIB_LAYER_ARN = None
-    ##############################################
     def __init__(
         self,
         scope: Stack,
@@ -24,6 +20,7 @@ class LambdaCreator:
         timeout: int | None = None,
         memory_size: int | None = None,
         storage_size: int | None = None,
+        layers: list | None = None,
         env_dict: dict | None = None,
         efs_arn: str | None = None,
         efs_mount_path: str | None = "/mnt/efs",
@@ -32,25 +29,10 @@ class LambdaCreator:
         self.scope = scope
         self.lambda_name = lambda_name
 
-
-        if (
-            runtime == Runtime.PYTHON_3_12
-            and self.PYTHON_3_12_LIB_LAYER_ARN is not None
-        ):
-            layers = [
-                LayerVersion.from_layer_version_arn(
-                    self.scope,
-                    "lib-layer",
-                    layer_version_arn=self.PYTHON_3_12_LIB_LAYER_ARN,
-                )
-            ]
-        else:
-            layers = None
-
         self.func = self._create(
             lambda_name,
             runtime if runtime is not None else Runtime.PYTHON_3_12,
-            code if code is not None else Code.from_asset("src_lambda/initial/src"),
+            code if code is not None else Code.from_asset("initial_lambda"),
             timeout=timeout,
             memory_size=memory_size,
             storage_size=storage_size,

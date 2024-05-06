@@ -27,6 +27,9 @@
         "lambda_func": {
             "$ref": "#/$defs/lambda_dict"
         },
+        "lambda_layer":{
+            "$ref": "#/$defs/layer_dict"
+        },
         "batch_func": {
             "$ref": "#/$defs/batch_dict"
         },
@@ -151,6 +154,22 @@
                 "queue_next": {
                     "type": "string",
                     "pattern": "^[A-z0-9_]+$"
+                },
+                "layer_list":{
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "layer_dict":{
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "type": "string",
+                    "pattern": "^[A-z0-9_\\-:]+$"                    
                 }
             }
         },

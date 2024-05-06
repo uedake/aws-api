@@ -62,13 +62,23 @@ cd cdk
 source .venv/bin/activate
 ```
 
-3. deployする
-```
-cdk deploy
-```
+3. （過去にこのAWSアカウントでcdkを使用していない場合のみ）
 
-注：過去にこのAWSアカウントでcdkを使用していない場合、一度下記を実行してからdeployを実行すること
+過去にこのAWSアカウントでcdkを使用していない場合、一度下記を実行すること
 
 ```
 cdk bootstrap
+```
+
+4. deployする
+
+```
+cd cdk
+cdk deploy --context api_spec=<path_to_api_spec_json>
+```
+
+例：sampleをデプロイする場合
+```
+cd cdk
+cdk deploy --context api_spec=..\api_spec\sample\api_spec.json --context schema=..\api_spec\schema.json
 ```

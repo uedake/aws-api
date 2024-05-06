@@ -37,6 +37,10 @@
                 "ANY /echo/{path1}/{path2}",
                 "ANY /echo/{path1}",
                 "ANY /echo"
+            ],
+            "numpy": [
+                "ANY /numpy",
+                "ANY /numpy/{z}"
             ]
         }
     },
@@ -50,29 +54,40 @@
     },
     "lambda_func": {
         "pipeline_entry": {
-            "code": "src_lambda/sample/pipeline_entry/src",
-            "test": "src_lambda/sample/pipeline_entry/test/test.json",
+            "code": "src_lambda/pipeline_entry/src",
+            "test": "src_lambda/pipeline_entry/test/test.json",
             "timeout": 3,
             "queue_next": "pipeline_process"
         },
         "pipeline_process": {
-            "code": "src_lambda/sample/pipeline_process/src",
+            "code": "src_lambda/pipeline_process/src",
             "timeout": 10
         },
         "s3_access": {
-            "code": "src_lambda/sample/s3_access/src",
-            "test": "src_lambda/sample/s3_access/test/test.json",
+            "code": "src_lambda/s3_access/src",
+            "test": "src_lambda/s3_access/test/test.json",
             "timeout": 10
         },
         "echo": {
-            "code": "src_lambda/sample/echo/src",
-            "test": "src_lambda/sample/s3_access/test/test.json",
+            "code": "src_lambda/echo/src",
+            "test": "src_lambda/echo/test/test.json",
             "timeout": 3
         },
         "called_by_batch": {
-            "code": "src_lambda/sample/called_by_batch/src",
+            "code": "src_lambda/called_by_batch/src",
             "timeout": 3
+        },
+        "numpy": {
+            "code": "src_lambda/numpy/src",
+            "test": "src_lambda/numpy/test/test.json",
+            "timeout": 3,
+            "layer_list": [
+                "common"
+            ]
         }
+    },
+    "lambda_layer": {
+        "common": "py3-12-common:2"
     },
     "vpc_for_batch": {
         "subnet_id_list": [],
