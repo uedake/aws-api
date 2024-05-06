@@ -13,81 +13,10 @@ from .sqs_creator import SQSCreator
 from .ecr_creator import ECRCreator
 from .batch_creator import BatchCreator
 from .s3_creator import S3Creator
+from .util.aws_check_util import LambdaLayerChecker
 
 
 class APIStack(Stack):
-    """
-    下記をＡＷＳ上で作成します
-    - lambda
-    - batch (ecr含む)
-    - apigw
-    - sqs
-    - s3
-
-    これらのリソースは識別可能なように下記の部分名称を使って命名されます
-    - api_name
-      - api_spec["name"]で指定します
-    - branch_name
-      - api_spec["stage"]の中で指定します（複数指定可能）
-
-    ■AWS lambdaの作成
-    api_spec["lambda_func"]に従って、AWS lambdaを作成します
-    - 下記名前のlambdaを作成します
-      - "{api_name}-{branch_name}-{lambda_func_name}"
-    {lambda_func_name}はapi_spec["lambda_func"]のkey名が使用されます
-
-    lambdaを実行する前に別途上記lambdaにコードをアップロードしておいてください
-
-    (補足) lambdaに設定される環境変数
-    - Bucket
-      - api_spec["stage"]中でステージごとに定義した値が設定されます
-      - API全体に渡って共通のs3に各lambda中からアクセスする場合に、
-        アクセス先のバケット名を指定しておくのに使用します
-      - s3のバケットは別途自分で作成したものを参照することもできますし、
-        このcdk中でapi_spec["s3"]を指定して作成することも可能です
-    - Branch
-      - branch_nameが設定されます
-    - API
-      - api_nameが設定されます
-    - NextSQS
-      - api_spec["lambda_func"]中でfuncごとに定義した値が設定されます
-      - このlambdaの処理が終わった後に実行して欲しいSQSのキュー名を指定するのに使用します
-
-    ■AWS batchとECRの作成
-    api_spec["batch_func"]及びapi_spec["vpc_for_batch"]に従って、AWS batchとECRを作成します
-    - 下記名前のECRレジストリを作成します
-      - "{api_name}-{batch_func_name}"
-    - 下記名前のtagを持つdockerイメージを実行するbatchを作成します
-      - "{account}.dkr.ecr.{region}.amazonaws.com/{api_name}-{batch_func_name}:{branch_name}"
-    {batch_func_name}はapi_spec["batch_func"]のkey名が使用されます
-
-    このcdkではVPCを作成しません。cdk実行前に事前に別途VPCを作成しておく必要があります
-    batchを実行する前に別途上記ECRレジストリに上記tag名でイメージをpushしておいてください
-
-    ■API gatewayの作成
-    api_spec["apigw"]に従って、lambdaを実行するためのAPI gatewayを作成します
-    - 下記名前のAPI gatewayを作成します
-      - "{api_name}"
-
-    アクセス先のlambdaは、api_spec["lambda_func"]中で指定してください。
-
-    ■SQSの作成
-    api_spec["sqs_for_lambda"]に従ってlambdaを実行するためのSQSを作成します
-    - 下記名前のSQSを作成します
-      - "{api_name}-{branch_name}-{lambda_func_name}_waiting"
-      - "{api_name}-{branch_name}-{lambda_func_name}_dead"
-    {lambda_func_name}はapi_spec["sqs_for_lambda"]のkey名が使用されます
-
-    アクセス先のlambdaは、api_spec["lambda_func"]中で指定してください。
-
-    ■S3の作成
-    api_spec["s3"]に従ってlambdaを実行するためのS3を作成します
-    - 下記名前のS3を作成します
-      - "{bucket_name}"
-    {bucket_name}はapi_spec["s3"]のkey名が使用されます
-
-    """
-
     ENV_BUCKET_KEY = "Bucket"
     ENV_BRANCH_KEY = "Branch"
     ENV_API_KEY = "API"
@@ -131,10 +60,9 @@ class APIStack(Stack):
             s3_spec_dict=api_spec.get("s3"),
             apigw_spec=api_spec.get("apigw"),
             lambda_spec_dict=api_spec.get("lambda_func"),
-            layer_spec_dict=api_spec.get("lambda_layer"),
             sqs_spec_dict=api_spec.get("sqs_for_lambda"),
             batch_spec_dict=api_spec.get("batch_func"),
-            vpc_spec=api_spec.get("vpc_for_batch"),
+            ref_spec=api_spec.get("ref"),
             root_path=root_path,
         )
 
@@ -149,6 +77,16 @@ class APIStack(Stack):
         else:
             return os.path.join(root_path, path)
 
+    def _resolve_lambda_layer_arn(self, arn_or_name: str):
+        if arn_or_name.startswith("arn:"):
+            return arn_or_name
+        else:
+            layer_name = arn_or_name
+            ver = LambdaLayerChecker(layer_name).get_latest_version()
+            return "arn:aws:lambda:{}:{}:layer:{}:{}".format(
+                self.region, self.account, layer_name, ver
+            )
+
     def _create(
         self,
         api_name: str,
@@ -158,11 +96,13 @@ class APIStack(Stack):
         apigw_spec: dict | None = None,
         sqs_spec_dict: dict | None = None,
         lambda_spec_dict: dict | None | None,
-        layer_spec_dict: dict | None | None,
         batch_spec_dict: dict | None = None,
-        vpc_spec: dict | None = None,
+        ref_spec: dict | None = None,
         root_path: str | None = None,
     ):
+        ref_layer_dict = ref_spec.get("lambda_layer") if ref_spec is not None else None
+        ref_vpc = ref_spec.get("vpc") if ref_spec is not None else None
+
         # ceate s3
         if s3_spec_dict is not None:
             for bucket_name, s3_spec in s3_spec_dict.items():
@@ -191,11 +131,9 @@ class APIStack(Stack):
 
         # get lambda layer reference
         layer_dict = {}
-        if layer_spec_dict is not None:
-            for layer_id, layer_name_with_version in layer_spec_dict.items():
-                layer_version_arn = "arn:aws:lambda:{}:{}:layer:{}".format(
-                    self.region, self.account, layer_name_with_version
-                )
+        if ref_layer_dict is not None:
+            for layer_id, layer_arn_or_name in ref_layer_dict.items():
+                layer_version_arn = self._resolve_lambda_layer_arn(layer_arn_or_name)
                 layer_dict[layer_id] = LayerVersion.from_layer_version_arn(
                     self,
                     layer_version_arn,
@@ -289,7 +227,7 @@ class APIStack(Stack):
                     lambda_to_func[lambda_func_name] = lambda_creator.func
 
             # create batchs (for each stage and each batch_func)
-            if vpc_spec is not None and batch_spec_dict is not None:
+            if ref_vpc is not None and batch_spec_dict is not None:
                 for batch_func_name, batch_spec in batch_spec_dict.items():
                     BatchCreator(
                         self,
@@ -302,8 +240,8 @@ class APIStack(Stack):
                             branch_name,
                         ),
                         batch_spec["maxv_cpus"],
-                        vpc_spec["subnet_id_list"],
-                        vpc_spec["security_group_id"],
+                        ref_vpc["subnet_id_list"],
+                        ref_vpc["security_group_id"],
                         queue_state_lambda=lambda_to_func[
                             batch_spec.get("queue_state_lambda")
                         ],
@@ -329,8 +267,11 @@ class APIStack(Stack):
             text = f.read()
             raw_api_spec: str = json.loads(text)
 
-            replaced_text = text.replace("{$account}", self.account)
-            replaced_text = replaced_text.replace("{$api}", raw_api_spec["name"])
+            replaced_text = (
+                text.replace("{$api}", raw_api_spec["name"])
+                .replace("{$account}", self.account)
+                .replace("{$region}", self.region)
+            )
             api_spec: str = json.loads(replaced_text)
 
         self.create(

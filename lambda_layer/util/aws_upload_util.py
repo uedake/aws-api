@@ -74,9 +74,7 @@ class LambdaLayerUploader:
 
         lambda_client: LambdaClient = boto3.client("lambda")
 
-        list_response = lambda_client.list_layers(
-            CompatibleArchitecture=ARCH, CompatibleRuntime=self.runtime
-        )
+        list_response = lambda_client.list_layers()
         layer_dict = {
             layer_info["LayerName"]: layer_info["LatestMatchingVersion"]
             for layer_info in list_response["Layers"]

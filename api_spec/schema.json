@@ -1,7 +1,7 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "API config Validation",
-    "description": "use to chack API config is valid",
+    "title": "API spec Validation",
+    "description": "api spec setting",
     "type": "object",
     "additionalProperties": false,
     "required": [
@@ -27,14 +27,11 @@
         "lambda_func": {
             "$ref": "#/$defs/lambda_dict"
         },
-        "lambda_layer":{
-            "$ref": "#/$defs/layer_dict"
-        },
         "batch_func": {
             "$ref": "#/$defs/batch_dict"
         },
-        "vpc_for_batch": {
-            "$ref": "#/$defs/vpc"
+        "ref":{
+            "$ref": "#/$defs/ref"
         }
     },
     "$defs": {
@@ -106,7 +103,8 @@
                 "^[A-z0-9_]+$": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "route key e.g. GET /func_name/{path_param_name}"
                     }
                 }
             }
@@ -163,16 +161,6 @@
                 }
             }
         },
-        "layer_dict":{
-            "type": "object",
-            "additionalProperties": false,
-            "patternProperties": {
-                "^[A-z0-9_]+$": {
-                    "type": "string",
-                    "pattern": "^[A-z0-9_\\-:]+$"                    
-                }
-            }
-        },
         "batch_dict": {
             "type": "object",
             "additionalProperties": false,
@@ -201,7 +189,31 @@
                 }
             }
         },
-        "vpc": {
+        "ref":{
+            "type": "object",
+            "description": "refered resources. they should be created in advance",
+            "additionalProperties": false,
+            "properties": {
+                "lambda_layer":{
+                    "$ref": "#/$defs/layer_dict"
+                },
+                "vpc": {
+                    "$ref": "#/$defs/vpc"
+                }    
+            }
+        },
+        "layer_dict":{
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "type": "string",
+                    "description": "layer name without version or layer arn",
+                    "pattern": "^[A-z0-9_\\-:]+$"                    
+                }
+            }
+        },
+       "vpc": {
             "type": "object",
             "additionalProperties": false,
             "required": [

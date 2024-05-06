@@ -86,19 +86,21 @@
             ]
         }
     },
-    "lambda_layer": {
-        "common": "py3-12-common:2"
-    },
-    "vpc_for_batch": {
-        "subnet_id_list": [],
-        "security_group_id": ""
-    },
     "batch_func": {
         "convert": {
             "queue_state_lambda": "called_by_batch",
             "maxv_cpus": 40,
             "memory": 8192,
             "vcpu": 4
+        }
+    },
+    "ref": {
+        "lambda_layer": {
+            "common": "py3-12-common"
+        },
+        "vpc": {
+            "subnet_id_list": [],
+            "security_group_id": ""
         }
     }
 }

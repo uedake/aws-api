@@ -2,3 +2,4 @@ numpy
 numpy-quaternion
 slackweb
 requests
+pymongo
