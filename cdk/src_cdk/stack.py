@@ -13,7 +13,7 @@ from .sqs_creator import SQSCreator
 from .ecr_creator import ECRCreator
 from .batch_creator import BatchCreator
 from .s3_creator import S3Creator
-from .util.aws_check_util import LambdaLayerChecker
+from .awsutil.aws_check_util import LambdaLayerChecker
 
 
 class APIStack(Stack):

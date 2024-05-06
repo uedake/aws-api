@@ -1,0 +1,18 @@
+[submodule "api_spec/sample/src_lambda/numpy/src/awsutil"]
+	path = api_spec/sample/src_lambda/numpy/src/awsutil
+	url = https://github.com/uedake/aws-util.git
+[submodule "api_spec/sample/src_lambda/pipeline_entry/src/awsutil"]
+	path = api_spec/sample/src_lambda/pipeline_entry/src/awsutil
+	url = https://github.com/uedake/aws-util.git
+[submodule "api_spec/sample/src_lambda/pipeline_process/src/awsutil"]
+	path = api_spec/sample/src_lambda/pipeline_process/src/awsutil
+	url = https://github.com/uedake/aws-util.git
+[submodule "api_spec/sample/src_lambda/s3_access/src/awsutil"]
+	path = api_spec/sample/src_lambda/s3_access/src/awsutil
+	url = https://github.com/uedake/aws-util.git
+[submodule "lambda_layer/awsutil"]
+	path = lambda_layer/awsutil
+	url = https://github.com/uedake/aws-util.git
+[submodule "cdk/src_cdk/awsutil"]
+	path = cdk/src_cdk/awsutil
+	url = https://github.com/uedake/aws-util.git
