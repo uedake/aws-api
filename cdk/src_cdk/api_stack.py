@@ -7,12 +7,12 @@ from aws_cdk.aws_lambda import Code, LayerVersion
 from constructs import Construct
 from jsonschema import Draft202012Validator
 
-from .lambda_creator import LambdaCreator
-from .apigateway_creator import ApiGatewayCreator
-from .sqs_creator import SQSCreator
-from .ecr_creator import ECRCreator
-from .batch_creator import BatchCreator
-from .s3_creator import S3Creator
+from .creator.lambda_creator import LambdaCreator
+from .creator.apigateway_creator import ApiGatewayCreator
+from .creator.sqs_creator import SQSCreator
+from .creator.ecr_creator import ECRCreator
+from .creator.batch_creator import BatchCreator
+from .creator.s3_creator import S3Creator
 from .awsutil.aws_check_util import LambdaLayerChecker
 
 
@@ -66,9 +66,8 @@ class APIStack(Stack):
             root_path=root_path,
         )
 
-    [classmethod]
-
-    def _resolve_path(cls, path: str, root_path: str | None = None) -> str:
+    @staticmethod
+    def _resolve_path(path: str, root_path: str | None = None) -> str:
         if root_path is None:
             return path
 

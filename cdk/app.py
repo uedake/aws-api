@@ -3,7 +3,7 @@ import os
 
 import aws_cdk as cdk
 
-from src_cdk.stack import APIStack
+from src_cdk.api_stack import APIStack
 
 app = cdk.App()
 api_spec = app.node.try_get_context("api_spec")

@@ -14,7 +14,8 @@ cdkを使用してAWS上にWebAPIを構築します
 - vpc
   - batchを作成する場合に必要
 
-リソースはapi_specの指定に従って作成されます
+リソースはapi_spec（API定義ファイル）の指定に従って作成されます。
+api_specの記述仕様は[スキーマ定義](../api_spec/schema.json)を参照してください。
 
 ## 作成されるリソースの詳細
 
@@ -166,7 +167,7 @@ cdk bootstrap
 
 ```
 cd cdk
-cdk deploy --context api_spec=..\api_spec\sample\api_spec.json --context schema=..\api_spec\schema.json
+cdk deploy --context api_spec=<api_specへのパス> --context schema=<api_specのスキーマへのパス>
 ```
 
 例：sampleをデプロイする場合

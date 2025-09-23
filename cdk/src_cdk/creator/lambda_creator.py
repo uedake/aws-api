@@ -126,7 +126,7 @@ class LambdaCreator:
         queue: Queue,
     ) -> LambdaCreator:
         """
-        lambdaををsqsから呼び出せるようにします
+        lambdaをsqsから呼び出せるようにします
         """
         self.func.add_event_source(SqsEventSource(queue, batch_size=1))
         return self
