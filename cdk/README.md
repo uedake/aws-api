@@ -26,16 +26,18 @@ api_specの記述仕様は[スキーマ定義](../api_spec/schema.json)を参照
 
 lambda及びbatchには下記の環境変数が設定されます。
 
+- Branch
+  - branch_nameが設定されます
+- API
+  - api_nameが設定されます
 - Bucket
   - `api_spec["stage"]`中でステージごとの`"bucket"`で定義した値が設定されます
   - API全体に渡って共通のs3に各lambdaやbatch中からアクセスする場合に、
     アクセス先のバケット名を指定しておくのに使用します
   - s3のバケットは別途自分で作成したものを参照することもできますし、
     このcdk中で`api_spec["s3"]`を指定して作成することも可能です
-- Branch
-  - branch_nameが設定されます
-- API
-  - api_nameが設定されます
+- NOTIFICATION_WEBHOOK_URL
+  - `api_spec["stage"]`中でステージごとの`"notification_url"`で定義した値が設定されます
 - NextSQS　※lambda専用
   - `api_spec["lambda_func"]`中でfuncごとに定義した値が設定されます
   - このlambdaの処理が終わった後に実行して欲しいSQSのキュー名を指定するのに使用します
