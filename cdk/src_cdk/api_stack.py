@@ -32,6 +32,11 @@ class APIStack(Stack):
         root_path: str | None = None,
         schema_path: str | None = None,
     ):
+        """
+        parameters:
+          root_path: spec_dict中で記載されている相対パスにおけるルートパスを設定します。
+                     Noneの場合はapp.pyが存在するフォルダからの相対パスとみなされます。
+        """
         stage_spec_dict = (
             api_spec["stage"]
             if "stage" in api_spec
@@ -41,10 +46,6 @@ class APIStack(Stack):
                 },
             }
         )
-        """
-        root_pathにはspec_dict中で記載されているパスが相対パス表記である場合のルートパスを設定します。
-        Noneの場合はapp.pyが存在するフォルダからの相対パスとみなされます。
-        """
 
         # schema_check
         if schema_path is not None:
@@ -93,12 +94,20 @@ class APIStack(Stack):
         *,
         s3_spec_dict: dict | None = None,
         apigw_spec: dict | None = None,
-        sqs_spec_dict: dict | None = None,
         lambda_spec_dict: dict | None | None,
         batch_spec_dict: dict | None = None,
         ref_spec: dict | None = None,
         root_path: str | None = None,
     ):
+        """
+
+        - 下記は全stage共通で作成します。
+          - s3
+          - apigw
+        - 下記はstage毎に作成します。
+          - lambda, sqs
+          - batch
+        """
         ref_layer_dict = ref_spec.get("lambda_layer") if ref_spec is not None else None
         ref_vpc = ref_spec.get("vpc") if ref_spec is not None else None
 
@@ -145,7 +154,6 @@ class APIStack(Stack):
                 ECRCreator(self, "{}-{}".format(api_name, batch_func_name))
 
         # for each stage
-
         for stage_spec in stage_spec_dict.values():
             branch_name = stage_spec["branch"]
             # env for lambda
@@ -156,25 +164,6 @@ class APIStack(Stack):
             if "bucket" in stage_spec:
                 env_dict[self.ENV_BUCKET_KEY] = stage_spec["bucket"]
 
-            # create queues (for each stage and each sqs_for_lambda)
-            lambda_to_queue = {}
-            if sqs_spec_dict is not None:
-                for lambda_func_name, sqs_spec in sqs_spec_dict.items():
-                    additional_timeout = sqs_spec.get("additional_timeout", 10)
-                    lambda_spec = lambda_spec_dict[lambda_func_name]
-                    base_timeout = lambda_spec.get("timeout", 3)
-
-                    queue_prefix = "{}-{}-{}".format(
-                        api_name, branch_name, lambda_func_name
-                    )
-                    sqs_creator = SQSCreator(
-                        self,
-                        queue_prefix + "_waiting",
-                        queue_prefix + "_dead",
-                        visibility_timeout_sec=base_timeout + additional_timeout,
-                    )
-                    lambda_to_queue[lambda_func_name] = sqs_creator.queue
-
             # create lambdas (for each stage and each lambda_func)
             lambda_to_func = {}
             if lambda_spec_dict is not None:
@@ -182,15 +171,23 @@ class APIStack(Stack):
                     lambda_name = "{}-{}-{}".format(
                         api_name, branch_name, lambda_func_name
                     )
-                    additional_env_dict = (
-                        {
+                    additional_env_dict = {}
+                    if "queue_next" in lambda_spec:
+                        if lambda_spec["queue_next"] not in lambda_spec_dict:
+                            raise Exception(
+                                f"lambda '{lambda_spec["queue_next"]}' spec not found: requested by queue_next of `{lambda_func_name}`"
+                            )
+                        else:
+                            if "queue" not in lambda_spec_dict[lambda_spec["queue_next"]]:
+                                raise Exception(
+                                    f"lambda '{lambda_spec["queue_next"]}' spec should have `queue` key: requested by queue_next of `{lambda_func_name}`"
+                                )
+
+                        additional_env_dict = {
                             self.ENV_NEXT_SQS_KEY: "{}-{}-{}_waiting".format(
                                 api_name, branch_name, lambda_spec["queue_next"]
                             )
                         }
-                        if "queue_next" in lambda_spec
-                        else {}
-                    )
 
                     layers = (
                         [layer_dict[layer_id] for layer_id in lambda_spec["layer_list"]]
@@ -221,8 +218,22 @@ class APIStack(Stack):
                     )
                     if lambda_func_name in apigw_spec["route"]:
                         lambda_creator.called_by_apigateway(api_creator.api)
-                    if lambda_func_name in lambda_to_queue:
-                        lambda_creator.called_by_sqs(lambda_to_queue[lambda_func_name])
+
+                    if "queue" in lambda_spec:
+                        sqs_spec = lambda_spec["queue"]
+                        additional_timeout = sqs_spec.get("additional_timeout", 10)
+                        base_timeout = lambda_spec.get("timeout", 3)
+
+                        queue_prefix = "{}-{}-{}".format(
+                            api_name, branch_name, lambda_func_name
+                        )
+                        sqs_creator = SQSCreator(
+                            self,
+                            queue_prefix + "_waiting",
+                            queue_prefix + "_dead",
+                            visibility_timeout_sec=base_timeout + additional_timeout,
+                        )
+                        lambda_creator.called_by_sqs(sqs_creator.queue)
                     lambda_to_func[lambda_func_name] = lambda_creator.func
 
             # create batchs (for each stage and each batch_func)

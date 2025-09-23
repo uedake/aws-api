@@ -5,9 +5,9 @@ from aws_cdk.aws_apigatewayv2 import CfnApi
 from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal
 from aws_cdk.aws_lambda import Code, FileSystem, Function, Runtime
 from aws_cdk.aws_eventschemas import CfnSchema
-from aws_cdk.aws_lambda_event_sources import SqsEventSource
+from aws_cdk.aws_lambda_event_sources import SqsEventSource, SnsEventSource
 from aws_cdk.aws_sqs import Queue
-
+from aws_cdk.aws_sns import Topic
 
 class LambdaCreator:
     def __init__(
@@ -110,6 +110,9 @@ class LambdaCreator:
     ) -> LambdaCreator:
         """
         lambdaをAPI gatewayから呼び出せるようにします
+        ※lambda側にリソースベースのポリシーを設定します。
+        　リソースベースのポリシーで許可していれば、
+        　呼び出し側のアイデンティティベースのポリシーで明示的に許可するのは不要
         """
         self.func.add_permission(
             "{}-permission".format(self.lambda_name),
@@ -127,6 +130,22 @@ class LambdaCreator:
     ) -> LambdaCreator:
         """
         lambdaをsqsから呼び出せるようにします
+        ※lambda側にリソースベースのポリシーを設定します。
+        　リソースベースのポリシーで許可していれば、
+        　呼び出し側のアイデンティティベースのポリシーで明示的に許可するのは不要
         """
         self.func.add_event_source(SqsEventSource(queue, batch_size=1))
+        return self
+
+    def called_by_sns(
+        self,
+        topic: Topic,
+    ) -> LambdaCreator:
+        """
+        lambdaをSNSから呼び出せるようにします
+        ※lambda側にリソースベースのポリシーを設定します。
+        　リソースベースのポリシーで許可していれば、
+        　呼び出し側のアイデンティティベースのポリシーで明示的に許可するのは不要
+        """
+        self.func.add_event_source(SnsEventSource(topic))
         return self
