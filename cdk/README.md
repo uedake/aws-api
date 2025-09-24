@@ -6,6 +6,7 @@ cdkを使用してAWS上にWebAPIを構築します
 - batch (ecr含む)
 - apigw
 - s3
+- sns
 
 下記のリソースは構築しないので必要に応じて別途用意してください
 - lambda layer
@@ -16,13 +17,31 @@ cdkを使用してAWS上にWebAPIを構築します
 リソースはapi_spec（API定義ファイル）の指定に従って作成されます。
 api_specの記述仕様は[スキーマ定義](../api_spec/schema.json)を参照してください。
 
-## 作成されるリソースの詳細
+## 作成されるリソースの名前
 
-作成されるリソースの名前は下記の部分名称を使って命名されます
-- api_name
-  - `api_spec["name"]`で指定します
-- branch_name
-  - `api_spec["stage"]`の中で指定します（複数指定可能）
+作成されるリソースの名前は下記変数で決まります
+
+|変数|指定場所|ハイフンの使用|アンダースコアの使用|
+|--|--|--|--|
+|bucket_name|`api_spec["s3"]`のkey名で指定|〇|×|
+|api_name|`api_spec["name"]`の値で指定|〇|×|
+|branch_name|`api_spec["stage"]`の各エントリの"branch"の値で指定|×|×|
+|lambda_func_name|`api_spec["lambda_func_name"]`のkey名で指定|×|〇|
+|batch_func_name|`api_spec["batch_func"]`のkey名で指定|×|〇|
+
+作成されるリソースの名前は下記の通り命名されます
+
+|リソース|名前|値|
+|--|--|--|
+|S3|バケット名|"{bucket_name}"|
+|ApiGateway|GW名|"{api_name}"|
+|Lambda|関数名|"{api_name}-{branch_name}-{lambda_func_name}"|
+|SQS|トピック名|"{api_name}-{branch_name}-{lambda_func_name}_waiting"|
+|SQS|トピック名|"{api_name}-{branch_name}-{lambda_func_name}_dead"|
+|ECR|レジストリ名|"{api_name}-{batch_func_name}"|
+|Batch|dockerイメージのtag名|"{account}.dkr.ecr.{region}.amazonaws.com/{api_name}-{batch_func_name}:{branch_name}"|
+
+## リソースの詳細
 
 lambda及びbatchには下記の環境変数が設定されます。
 
@@ -44,52 +63,33 @@ lambda及びbatchには下記の環境変数が設定されます。
 
 
 ### 作成されるAWS lambdaとSQS
-`api_spec["lambda_func"]`及び`api_spec["ref"]["lambda_layer"]`に従って、AWS lambdaを作成します
-- 下記名前のlambdaを作成します
-  - "{api_name}-{branch_name}-{lambda_func_name}"
-- `"queue"`の指定をした場合は、下記名前でSQSも合わせて作成します
-  - "{api_name}-{branch_name}-{lambda_func_name}_waiting"
-  - "{api_name}-{branch_name}-{lambda_func_name}_dead"
-{lambda_func_name}は`api_spec["lambda_func"]`のkey名が使用されます
 
-lambdaを実行する前に別途上記lambdaにコードをアップロードしておいてください
-
-(補足) lambdaレイヤーの指定
-`api_spec["ref"]["lambda_layer"]`中で使用したいレイヤーのarnもしくはレイヤーの名前（バージョンを含まない）を指定します。
-レイヤーの名前で指定した場合、その名前の（cdk実行時点で）最新のversionのレイヤーが自動的に選ばれます
-
-例：
-```
-"lambda_layer": {
-    "mylayer_1": "arn:aws:lambda:{$region}:{$account}:layer:mylayer:1",
-    "mylayer_latest": "mylayer"
-}
-```
+- `api_spec["lambda_func"]`及び`api_spec["ref"]["lambda_layer"]`に従って、AWS lambdaを作成します。
+- `"queue"`の指定をした場合は、SQSも合わせて作成します
+- lambdaを実行する前に別途上記lambdaにコードをアップロードしてください
+- (補足) lambdaレイヤーの指定
+  - `api_spec["ref"]["lambda_layer"]`中で使用したいレイヤーのarnもしくはレイヤーの名前（バージョンを含まない）を指定します。
+  - レイヤーの名前で指定した場合、その名前の（cdk実行時点で）最新のversionのレイヤーが自動的に選ばれます
+  - 例：
+  ```
+  "lambda_layer": {
+      "mylayer_1": "arn:aws:lambda:{$region}:{$account}:layer:mylayer:1",
+      "mylayer_latest": "mylayer"
+  }
+  ```
 
 ### 作成されるAWS batchとECR
-`api_spec["batch_func"]`及び`api_spec["ref"]["vpc"]`に従って、AWS batchとECRを作成します
-- 下記名前のECRレジストリを作成します
-  - "{api_name}-{batch_func_name}"
-- 下記名前のtagを持つdockerイメージを実行するbatchを作成します
-  - "{account}.dkr.ecr.{region}.amazonaws.com/{api_name}-{batch_func_name}:{branch_name}"
-{batch_func_name}は`api_spec["batch_func"]`のkey名が使用されます
 
-このcdkではVPCを作成しません。cdk実行前に事前に別途VPCを作成しておく必要があります
-batchを実行する前に別途上記ECRレジストリに上記tag名でイメージをpushしておいてください
+- `api_spec["batch_func"]`及び`api_spec["ref"]["vpc"]`に従って、AWS batchとECRを作成します
+- このcdkではVPCを作成しません。cdk実行前に事前に別途VPCを作成しておく必要があります
+- batchを実行する前に別途上記ECRレジストリに上記tag名でイメージをpushしておいてください
 
 ### 作成されるAPI gateway
-`api_spec["apigw"]`に従って、lambdaを実行するためのAPI gatewayを作成します
-- 下記名前のAPI gatewayを作成します
-  - "{api_name}"
-
-アクセス先のlambdaは、`api_spec["lambda_func"]`中で指定してください。
+- `api_spec["apigw"]`に従って、lambdaを実行するためのAPI gatewayを作成します
+- アクセス先のlambdaは、`api_spec["lambda_func"]`中で指定してください。
 
 ### 作成されるS3
-`api_spec["s3"]`に従ってlambdaを実行するためのS3を作成します
-- 下記名前のS3を作成します
-  - "{bucket_name}"
-{bucket_name}は`api_spec["s3"]`のkey名が使用されます
-
+- `api_spec["s3"]`に従ってlambdaやbatchからアクセスするS3を作成します
 
 ## インストール
 
@@ -170,5 +170,5 @@ cdk deploy --context api_spec=<api_specへのパス> --context schema=<api_spec�
 例：sampleをデプロイする場合
 ```
 cd cdk
-cdk deploy --context api_spec=..\api_spec\sample\api_spec.json --context schema=..\api_spec\schema.json
+cdk deploy --context api_spec=api_spec\sample\api_spec.json
 ```

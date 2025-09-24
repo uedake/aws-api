@@ -1,5 +1,6 @@
 {
     "name": "sample-api",
+    "default_runtime": "PYTHON_3_13",
     "stage": {
         "$default": {
             "branch": "main",
@@ -16,8 +17,7 @@
     },
     "s3": {
         "{$account}-{$api}": {
-            "public_read": true,
-            "website_hosting": true
+            "public_read": false
         },
         "{$account}-{$api}-test": {
             "public_read": false
@@ -44,34 +44,37 @@
             ]
         }
     },
-    "sqs_for_lambda": {
-        "pipeline_process": {
-            "additional_timeout": 10
-        },
-        "echo": {
-            "additional_timeout": 10
+    "sns": {
+        "amplify_state_change": {
+            "description": "CI/CD用",
+            "lambda": [
+                "notify_teams"
+            ]
         }
     },
     "lambda_func": {
         "pipeline_entry": {
             "code": "src_lambda/pipeline_entry/src",
-            "test": "src_lambda/pipeline_entry/test/test.json",
             "timeout": 3,
             "queue_next": "pipeline_process"
         },
         "pipeline_process": {
             "code": "src_lambda/pipeline_process/src",
-            "timeout": 10
+            "timeout": 10,
+            "queue": {
+                "additional_timeout": 10
+            }
         },
         "s3_access": {
             "code": "src_lambda/s3_access/src",
-            "test": "src_lambda/s3_access/test/test.json",
             "timeout": 10
         },
         "echo": {
             "code": "src_lambda/echo/src",
-            "test": "src_lambda/echo/test/test.json",
-            "timeout": 3
+            "timeout": 3,
+            "queue": {
+                "additional_timeout": 10
+            }
         },
         "called_by_batch": {
             "code": "src_lambda/called_by_batch/src",
@@ -79,11 +82,14 @@
         },
         "numpy": {
             "code": "src_lambda/numpy/src",
-            "test": "src_lambda/numpy/test/test.json",
             "timeout": 3,
             "layer_list": [
-                "common"
+                "pandas_python313"
             ]
+        },
+        "notify_teams": {
+            "code": "src_lambda/notify_teams/src",
+            "timeout": 3
         }
     },
     "batch_func": {
@@ -96,7 +102,8 @@
     },
     "ref": {
         "lambda_layer": {
-            "common": "py3-12-common"
+            "pandas_python313": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python313:4",
+            "pandas_python312": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312:19"
         },
         "vpc": {
             "subnet_id_list": [],

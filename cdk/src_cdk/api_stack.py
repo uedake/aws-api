@@ -2,7 +2,7 @@ import json
 import os
 
 from aws_cdk import Stack
-from aws_cdk.aws_lambda import Code, LayerVersion, ILayerVersion, Function
+from aws_cdk.aws_lambda import Code, LayerVersion, ILayerVersion, Function, Runtime
 from aws_cdk.aws_sns import Topic
 from aws_cdk.aws_apigatewayv2 import CfnApi
 
@@ -78,12 +78,11 @@ class APIStack(Stack):
             s3_spec_dict=api_spec.get("s3"),
             sns_spec_dict=api_spec.get("sns"),
             lambda_spec_dict=api_spec.get("lambda_func"),
-            sqs_spec_dict=api_spec.get("sqs_for_lambda"),
             batch_spec_dict=api_spec.get("batch_func"),
             ref_spec=api_spec.get("ref"),
             root_path=root_path,
+            default_runtime=api_spec.get("default_runtime"),
         )
-
 
     def create_from_json(
         self,
@@ -112,7 +111,6 @@ class APIStack(Stack):
         self.create(
             api_spec, root_path=os.path.dirname(json_path), schema_path=schema_path
         )
-
 
     @staticmethod
     def _resolve_path(path: str, root_path: str | None = None) -> str:
@@ -224,7 +222,9 @@ class APIStack(Stack):
         apigw_spec: dict | None = None,
         sns_spec_dict: dict[str, dict] | None = None,
         root_path: str | None = None,
+        default_runtime: str = "PYTHON_3_13",
     ) -> dict[str, Function]:
+        runtime = getattr(Runtime, default_runtime, None)
         lambda_func_dict = {}
         for lambda_func_name, lambda_spec in lambda_spec_dict.items():
             lambda_name = "{}-{}-{}".format(api_name, branch_name, lambda_func_name)
@@ -255,6 +255,7 @@ class APIStack(Stack):
             lambda_creator = LambdaCreator(
                 self,
                 lambda_name,
+                runtime=getattr(Runtime, lambda_spec.get("runtime", ""), runtime),
                 code=(
                     Code.from_asset(self._resolve_path(lambda_spec["code"], root_path))
                     if "code" in lambda_spec
@@ -340,6 +341,7 @@ class APIStack(Stack):
         batch_spec_dict: dict[str, dict] | None = None,
         ref_spec: dict[str, dict] | None = None,
         root_path: str | None = None,
+        default_runtime: str | None = None,
     ):
         api = (
             self._create_apigw(api_name, stage_spec_dict, apigw_spec)
@@ -377,11 +379,12 @@ class APIStack(Stack):
                     env_dict,
                     lambda_spec_dict,
                     api,
-                    layer_dict,
                     topic_dict,
+                    layer_dict,
                     apigw_spec=apigw_spec,
                     sns_spec_dict=sns_spec_dict,
                     root_path=root_path,
+                    default_runtime=default_runtime,
                 )
                 if lambda_spec_dict is not None
                 else {}

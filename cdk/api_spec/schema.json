@@ -12,6 +12,10 @@
             "type": "string",
             "pattern": "^[A-z0-9-]+$"
         },
+        "default_runtime": {
+            "type": "string",
+            "pattern": "^[A-z0-9_]+$"
+        },
         "stage": {
             "$ref": "#/$defs/stage_dict"
         },
@@ -21,8 +25,8 @@
         "apigw": {
             "$ref": "#/$defs/apigw"
         },
-        "sqs_for_lambda": {
-            "$ref": "#/$defs/sqs_dict"
+        "sns": {
+            "$ref": "#/$defs/sns_dict"
         },
         "lambda_func": {
             "$ref": "#/$defs/lambda_dict"
@@ -30,7 +34,7 @@
         "batch_func": {
             "$ref": "#/$defs/batch_dict"
         },
-        "ref":{
+        "ref": {
             "$ref": "#/$defs/ref"
         }
     },
@@ -56,7 +60,10 @@
                 },
                 "bucket": {
                     "type": "string",
-                    "pattern": "^[A-z0-9-\\.]+$"
+                    "pattern": "^[A-z0-9\\-\\.]+$"
+                },
+                "notification-url": {
+                    "type": "string"
                 }
             }
         },
@@ -64,7 +71,7 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-Za-z0-9-\\.]+$": {
+                "^[A-Za-z0-9\\-\\.]+$": {
                     "$ref": "#/$defs/s3"
                 }
             }
@@ -109,21 +116,36 @@
                 }
             }
         },
-        "sqs_dict": {
-            "type": "object",
-            "additionalProperties": false,
-            "patternProperties": {
-                "^[A-z0-9_]+$": {
-                    "$ref": "#/$defs/sqs"
-                }
-            }
-        },
         "sqs": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
                 "additional_timeout": {
                     "type": "number"
+                }
+            }
+        },
+        "sns_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-z0-9_]+$": {
+                    "$ref": "#/$defs/sns"
+                }
+            }
+        },
+        "sns": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "description": {
+                    "type": "string"
+                },
+                "lambda": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -140,20 +162,24 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "code": {
-                    "type": "string"
+                "runtime": {
+                    "type": "string",
+                    "pattern": "^[A-z0-9_]+$"
                 },
-                "test": {
+                "code": {
                     "type": "string"
                 },
                 "timeout": {
                     "type": "number"
                 },
+                "queue": {
+                    "$ref": "#/$defs/sqs"
+                },
                 "queue_next": {
                     "type": "string",
                     "pattern": "^[A-z0-9_]+$"
                 },
-                "layer_list":{
+                "layer_list": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -189,31 +215,31 @@
                 }
             }
         },
-        "ref":{
+        "ref": {
             "type": "object",
             "description": "refered resources. they should be created in advance",
             "additionalProperties": false,
             "properties": {
-                "lambda_layer":{
+                "lambda_layer": {
                     "$ref": "#/$defs/layer_dict"
                 },
                 "vpc": {
                     "$ref": "#/$defs/vpc"
-                }    
+                }
             }
         },
-        "layer_dict":{
+        "layer_dict": {
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
                 "^[A-z0-9_]+$": {
                     "type": "string",
                     "description": "layer name without version or layer arn",
-                    "pattern": "^[A-z0-9_\\-:]+$"                    
+                    "pattern": "^[A-z0-9_\\-:]+$"
                 }
             }
         },
-       "vpc": {
+        "vpc": {
             "type": "object",
             "additionalProperties": false,
             "required": [
