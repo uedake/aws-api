@@ -9,10 +9,9 @@ from awsutil.aws_util import (
 )
 
 _param_spec = {
-    "s3Key": {
-        "where": "path",
-        "required": True,
-    }
+    "s3Key": {"where": "query", "required": False},
+    "data": {"where": "body", "required": False, "type": [object]},
+    "msg": {"where": "body", "required": False, "type": [str]},
 }
 
 
@@ -26,7 +25,8 @@ def lambda_handler(event, context):
         bucket = os.environ.get("Bucket")
         s3_key = params["s3Key"]
         text_content = None
-        if bucket is not None:
+
+        if s3_key is not None and bucket is not None:
             shutil.rmtree(f"/tmp/{s3_key}", ignore_errors=True)
             s3 = S3Access(bucket, s3_key)
             try:
@@ -43,6 +43,8 @@ def lambda_handler(event, context):
             "exist": os.path.exists(f"/tmp/{s3_key}"),
             "text_content": text_content,
             "output_s3_key": output_s3_key,
+            "msg": params["msg"],
+            "data": params["data"],
         }
 
         if bucket is not None:

@@ -1,59 +1,57 @@
 import json
+import os
 
-from awsutil.aws_util import (
-    ApiGatewayEventAnalyzer,
-    WebApiException,
-    ErrorCode,
-    LambdaAccess,
-)
+import boto3
 
-_param_spec = {
-    "x": {
-        "where": "sqs",
-        "required": False,
-        "default": 0,
-    },
-    "y": {
-        "where": "sqs",
-        "required": False,
-        "default": 0,
-    },
-    "z": {
-        "where": "sqs",
-        "required": False,
-        "default": 0,
-    },
-}
+
+class LambdaAccess:
+    def __init__(
+        self, lambda_name: str, account: str | None = None, region: str | None = None
+    ):
+        self.client = boto3.client("lambda")
+        self.func_arn = "arn:aws:lambda:{}:{}:function:{}".format(
+            region if region is not None else os.environ["AWS_REGION"],
+            (
+                account
+                if account is not None
+                else boto3.client("sts").get_caller_identity()["Account"]
+            ),
+            lambda_name,
+        )
+
+    def invoke(self, *, body_dict: dict | None = None, query_dict: dict | None = None):
+        payload = {}
+        if body_dict is not None:
+            payload["body"] = json.dumps(body_dict)
+        if query_dict is not None:
+            payload["queryStringParameters"] = query_dict
+
+        response = self.client.invoke(
+            FunctionName=self.func_arn,
+            InvocationType="RequestResponse",
+            LogType="Tail",
+            Payload=json.dumps(payload),
+        )
+
+        return json.load(response["Payload"])
 
 
 def lambda_handler(event, context):
-    try:
-        api = ApiGatewayEventAnalyzer(event)
-        params_list = api.solve_sqs_params_list(_param_spec)
 
-        output_dict_list = []
-        for params in params_list:
-            print("params:")
-            print(params)
+    output_dict_list = []
+    if "Records" in event:
+        print("{} records received".format(len(event["Records"])))
+        for record in event["Records"]:
+            sqs_data = json.loads(record["body"])
 
-            output_dict = {
-                "x": params["x"],
-                "y": params["y"],
-                "z": params["z"],
-                "sum": params["x"] + params["y"] + params["z"],
-            }
-            LambdaAccess.from_default("s3_access").invoke(
-                body_dict={"data": output_dict},
-                query_dict={"msg": "called by pipeline_process"},
+            api_name = os.environ["API"]
+            branch = os.environ["Branch"]
+            LambdaAccess(f"{api_name}-{branch}-s3_access").invoke(
+                body_dict={"data": sqs_data, "msg": "called by pipeline_process"},
             )
 
-            output_dict_list.append(output_dict)
+            output_dict_list.append(sqs_data)
         print("output:")
         print(output_dict_list)
 
-        return {"statusCode": 200, "body": json.dumps(output_dict_list)}
-    except WebApiException as webex:
-        return webex.create_error_response()
-    except Exception as ex:
-        webex = WebApiException(500, ErrorCode.ServerLogicError, str(ex))
-        raise webex
+    return {"statusCode": 200, "body": json.dumps(output_dict_list)}

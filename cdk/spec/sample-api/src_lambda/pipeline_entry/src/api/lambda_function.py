@@ -1,58 +1,44 @@
 import json
 import os
 
-from awsutil.aws_util import (
-    ApiGatewayEventAnalyzer,
-    WebApiException,
-    ErrorCode,
-    SqsAccess
-)
+import boto3
 
-_param_spec = {
-    "x": {
-        "where": "body",
-        "required": False,
-        "default": 0,
-    },
-    "y": {
-        "where": "query",
-        "required": False,
-        "default": 0,
-        "options": {
-            "convert_to_float": True,
-        },
-    },
-    "z": {
-        "where": "path",
-        "required": False,
-        "default": 0,
-        "options": {
-            "convert_to_float": True,
-        },
-    },
-}
+
+class SqsAccess:
+    def __init__(
+        self, queue_name: str, account: str | None = None, region: str | None = None
+    ):
+
+        self.endpoint_url = "https://sqs.{}.amazonaws.com".format(
+            region if region is not None else os.environ["AWS_REGION"]
+        )
+        self.queue_url = "{}/{}/{}".format(
+            self.endpoint_url,
+            (
+                account
+                if account is not None
+                else boto3.client("sts").get_caller_identity()["Account"]
+            ),
+            queue_name,
+        )
+        self.client = boto3.client("sqs", endpoint_url=self.endpoint_url)
+
+    def send_json_message(self, message_dict: dict) -> dict:
+        return self.client.send_message(
+            QueueUrl=self.queue_url, MessageBody=json.dumps(message_dict)
+        )
 
 
 def lambda_handler(event, context):
-    try:
-        api = ApiGatewayEventAnalyzer(event)
-        params = api.solve_http_params(_param_spec)
-        print("params:")
-        print(params)
+    print("sample lambda function called!")
+    output_dict = {
+        "Records": event.get("Records"),
+        "queryStringParameters": event.get("queryStringParameters"),
+        "pathParameters": event.get("pathParameters"),
+        "body": event.get("body"),
+    }
+    print(output_dict)
 
-        outputDict = {
-            "x": params["x"],
-            "y": params["y"],
-            "z": params["z"],
-        }
+    SqsAccess(os.environ["NextSQS"]).send_json_message(output_dict)
 
-        SqsAccess(os.environ["NextSQS"]).send_json_message(
-            outputDict
-        )
-
-        return {"statusCode": 200, "body": json.dumps(outputDict)}
-    except WebApiException as webex:
-        return webex.create_error_response()
-    except Exception as ex:
-        webex = WebApiException(500, ErrorCode.ServerLogicError, str(ex))
-        raise webex
+    return {"statusCode": 200, "body": json.dumps(output_dict)}

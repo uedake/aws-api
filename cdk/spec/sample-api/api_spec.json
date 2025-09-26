@@ -37,8 +37,8 @@
         "lambda_integration": {
             "pipeline_entry": {
                 "route": [
-                    "ANY /pipeline_entry",
-                    "ANY /pipeline_entry/{z}"
+                    "ANY /pipeline_entry/{path1}",
+                    "ANY /pipeline_entry"
                 ]
             },
             "s3_access": {
@@ -50,14 +50,12 @@
                     "app": "aws-sample-app"
                 },
                 "route": [
-                    "ANY /echo_with_auth/{path1}/{path2}",
                     "ANY /echo_with_auth/{path1}",
                     "ANY /echo_with_auth"
                 ]
             },
             "echo": {
                 "route": [
-                    "ANY /echo/{path1}/{path2}",
                     "ANY /echo/{path1}",
                     "ANY /echo"
                 ]
@@ -111,7 +109,8 @@
             "code": "src_lambda/numpy/src",
             "timeout": 3,
             "layer_list": [
-                "pandas_python313"
+                "pandas_py313",
+                "fastapi_py313"
             ]
         }
     },
@@ -133,8 +132,9 @@
     },
     "ref": {
         "lambda_layer": {
-            "pandas_python313": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python313:4",
-            "pandas_python312": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312:19"
+            "pandas_py313": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python313:4",
+            "pandas_py312": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312:19",
+            "fastapi_py313": "arn:aws:lambda:ap-northeast-1:821721610090:layer:fastapi-py313:2"
         },
         "vpc": {
             "subnet_id_list": [],

@@ -2,29 +2,52 @@ openapi: 3.1.0
 info:
   title: Test API for s3 access
   version: 1.0.0
+common_setting: &responses
+  "200":
+    description: OK
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/S3AccessResponse"
+  "500":
+    description: Error
+    content:
+      application/json:
+        schema:
+          $ref: "#/components/schemas/Error"
 paths:
-  /s3_access/{s3Key}:
+  /s3_access:
     get:
-      summary: read file form s3
+      summary: read file form s3 and write log into s3
       parameters:
         - name: s3Key
-          in: path
-          required: true
+          in: query
+          required: false
           schema:
             type: string
       responses:
-        "200":
-          description: OK
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/S3AccessResponse"
-        "500":
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
+        <<: *responses
+    post:
+      summary: read file form s3 and write log into s3
+      parameters:
+        - name: s3Key
+          in: query
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: object
+                msg:
+                  type: string
+      responses:
+        <<: *responses
 components:
   schemas:
     S3AccessResponse:
@@ -34,13 +57,17 @@ components:
         bucket:
           type: string
         input_s3_key:
-          type: string
+          type: ["string", "null"]
         exist:
           type: bool
-        text_content:
-          type: ["string", "null"]
         output_s3_key:
           type: string
+        text_content:
+          type: ["string", "null"]
+        msg:
+          type: ["string", "null"]
+        data:
+          type: ["object", "null"]
     Error:
       type: object
       required: [msg, tb]
