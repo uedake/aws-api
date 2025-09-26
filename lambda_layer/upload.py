@@ -15,7 +15,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("-d", "--description", help="description of layer")
     parser.add_argument(
-        "-r", "--runtime", help="runtime type e.g. python3.12", default="python3.12"
+        "-r", "--runtime", help="runtime type e.g. python3.12", default="python3.13"
     )
     args = parser.parse_args()
     upload_layer(

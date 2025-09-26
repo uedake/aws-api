@@ -9,7 +9,7 @@ if __name__ == "__main__":
 
     parser.add_argument("pip_install_args", nargs="*")
     parser.add_argument(
-        "-p", "--python_version", help="python_version e.g. 3.12.3", default="3.12.3"
+        "-p", "--python_version", help="python_version e.g. 3.12.3", default="3.13"
     )
     parser.add_argument(
         "-a",

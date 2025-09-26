@@ -1,7 +1,7 @@
 import os
 
-from util.docker_util import Docker
-from util.aws_upload_util import LambdaLayerUploader
+from awsutil.docker_util import Docker
+from awsutil.aws_upload_util import LambdaLayerUploader
 
 
 def create_and_upload_layer(
