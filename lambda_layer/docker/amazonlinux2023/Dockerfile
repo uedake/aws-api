@@ -8,7 +8,7 @@ RUN chmod +x /entrypoint.sh
 
 # download python
 ENV PATH="~/.pyenv/bin:$PATH"
-ARG PYTHON_VER="3.12.3"
+ARG PYTHON_VER="3.13"
 RUN echo PYTHON_VER=${PYTHON_VER}
 RUN ~/.pyenv/bin/pyenv install ${PYTHON_VER}
 RUN ~/.pyenv/bin/pyenv global ${PYTHON_VER}

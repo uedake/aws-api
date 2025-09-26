@@ -13,6 +13,36 @@ from aws_cdk.aws_route53 import ARecord, RecordTarget, HostedZone, IHostedZone
 from aws_cdk.aws_route53_targets import ApiGatewayv2DomainProperties
 
 
+class CognitoRef:
+    def __init__(
+        self,
+        user_pool_dict: dict[str, str],
+        client_id_dict: dict[str, str],
+    ):
+        self.user_pool_dict = user_pool_dict
+        self.client_id_dict = client_id_dict
+
+    def get_authorizer_name(
+        self,
+        auth_spec,
+    ):
+        assert auth_spec["user"] in self.user_pool_dict
+
+        return "auth-{}-{}".format(auth_spec["user"], auth_spec["app"])
+
+    def get_jwt_configuration(
+        self,
+        auth_spec,
+    ) -> CfnAuthorizer.JWTConfigurationProperty:
+        assert auth_spec["user"] in self.user_pool_dict
+        client_id = self.client_id_dict[auth_spec["app"]]
+        user_pool_id = self.user_pool_dict[auth_spec["user"]]["user_pool_url"]
+        return CfnAuthorizer.JWTConfigurationProperty(
+            audience=[client_id],
+            issuer=user_pool_id,
+        )
+
+
 class ApiGatewayCreator:
     ##############################################
     STAGE_VARIABLE_BRANCH = "branch"
@@ -71,30 +101,40 @@ class ApiGatewayCreator:
 
     def add_lambda_integrations(
         self,
-        route_key_list_dict: dict[str, list[str]],
-        cognito_user_pool_url: str | None = None,
-        cognito_client_id: str | None = None,
+        lambda_integration_spec: dict[str, dict],
+        *,
+        cognito: CognitoRef | None = None,
     ) -> ApiGatewayCreator:
 
-        authorizer = (
-            CfnAuthorizer(
-                self.scope,
-                "cognito-authorizer",
-                api_id=self.api.ref,
-                authorizer_type="JWT",
-                name="cognito-authorizer",
-                identity_source=["$request.header.Authorization"],
-                jwt_configuration=CfnAuthorizer.JWTConfigurationProperty(
-                    audience=cognito_client_id,
-                    issuer=cognito_user_pool_url,
+        authorizer_dict = {}
+        for lambda_name, route_spec in lambda_integration_spec.items():
+            if "cognito_auth" in route_spec:
+                assert cognito is not None
+                auth_spec = route_spec["cognito_auth"]
+                authorizer_name = cognito.get_authorizer_name(auth_spec)
+                if authorizer_name not in authorizer_dict:
+                    authorizer_dict[authorizer_name] = CfnAuthorizer(
+                        self.scope,
+                        authorizer_name,
+                        api_id=self.api.ref,
+                        authorizer_type="JWT",
+                        name=authorizer_name,
+                        identity_source=["$request.header.Authorization"],
+                        jwt_configuration=cognito.get_jwt_configuration(auth_spec),
+                    )
+
+        for lambda_name, route_spec in lambda_integration_spec.items():
+            self._create_lambda_integration(
+                lambda_name,
+                route_spec["route"],
+                (
+                    authorizer_dict[
+                        cognito.get_authorizer_name(route_spec["cognito_auth"])
+                    ]
+                    if "cognito_auth" in route_spec
+                    else None
                 ),
             )
-            if cognito_client_id is not None and cognito_user_pool_url is not None
-            else None
-        )
-
-        for lambda_name, route_key_list in route_key_list_dict.items():
-            self._create_lambda_integration(lambda_name, route_key_list, authorizer)
         return self
 
     def _create_apigateway_domain(

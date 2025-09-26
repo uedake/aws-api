@@ -21,6 +21,27 @@ class SNSCreator:
         self.topic.add_to_resource_policy(
             PolicyStatement.from_json(
                 {
+                    "Sid": "__default_statement_ID",
+                    "Effect": "Allow",
+                    "Principal": {"AWS": "*"},
+                    "Action": [
+                        "SNS:GetTopicAttributes",
+                        "SNS:SetTopicAttributes",
+                        "SNS:AddPermission",
+                        "SNS:RemovePermission",
+                        "SNS:DeleteTopic",
+                        "SNS:Subscribe",
+                        "SNS:ListSubscriptionsByTopic",
+                        "SNS:Publish",
+                    ],
+                    "Resource": "arn:aws:sns:ap-northeast-1:821721610090:RemoteMonitoringCICD",
+                    "Condition": {"StringEquals": {"AWS:SourceOwner": "821721610090"}},
+                }
+            )
+        )
+        self.topic.add_to_resource_policy(
+            PolicyStatement.from_json(
+                {
                     "Effect": "Allow",
                     "Principal": {"Service": "events.amazonaws.com"},
                     "Action": "sns:Publish",

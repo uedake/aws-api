@@ -9,6 +9,7 @@ from aws_cdk.aws_lambda_event_sources import SqsEventSource, SnsEventSource
 from aws_cdk.aws_sqs import Queue
 from aws_cdk.aws_sns import Topic
 
+
 class LambdaCreator:
     def __init__(
         self,
@@ -60,7 +61,6 @@ class LambdaCreator:
         filesystem: FileSystem | None = None,
         test_schema_path: str | None = None,
     ) -> Function:
-
         func = Function(
             self.scope,
             lambda_name,
@@ -80,8 +80,8 @@ class LambdaCreator:
         for name in [
             "service-role/AWSBatchServiceEventTargetRole",
             "service-role/AWSLambdaRole",
-            #"service-role/AWSLambdaSQSQueueExecutionRole", #SQSから呼ばれるのに必要だが、FullAccessがあれば不要
-            "AmazonSQSFullAccess", #他のSQSを呼ぶのに必要
+            # "service-role/AWSLambdaSQSQueueExecutionRole", #SQSから呼ばれるのに必要だが、FullAccessがあれば不要
+            "AmazonSQSFullAccess",  # 他のSQSを呼ぶのに必要
             "AmazonS3FullAccess",
             "AmazonElasticFileSystemClientReadWriteAccess",
         ]:
@@ -106,7 +106,7 @@ class LambdaCreator:
 
     def called_by_apigateway(
         self,
-        api: CfnApi,
+        apigw_arn: str,
     ) -> LambdaCreator:
         """
         lambdaをAPI gatewayから呼び出せるようにします
@@ -118,9 +118,7 @@ class LambdaCreator:
             "{}-permission".format(self.lambda_name),
             principal=ServicePrincipal("apigateway.amazonaws.com"),
             action="lambda:InvokeFunction",
-            source_arn="arn:aws:execute-api:{}:{}:{}/*/*/*".format(
-                self.scope.region, self.scope.account, api.ref
-            ),
+            source_arn=apigw_arn,
         )
         return self
 

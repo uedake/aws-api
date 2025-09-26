@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aws_cdk import Stack
+from aws_cdk import Stack, RemovalPolicy
 from aws_cdk.aws_s3 import Bucket, BlockPublicAccess
 
 
@@ -32,4 +32,5 @@ class S3Creator:
                 else BlockPublicAccess.BLOCK_ALL
             ),
             website_index_document=website_index_document if website_hosting else None,
+            removal_policy=RemovalPolicy.DESTROY,
         )

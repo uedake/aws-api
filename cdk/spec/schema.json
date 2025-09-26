@@ -1,23 +1,26 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "title": "API spec Validation",
-    "description": "api spec setting",
+    "title": "Web System Spec Validation",
+    "description": "describe aws resource settings",
     "type": "object",
     "additionalProperties": false,
     "required": [
-        "name"
+        "stack",
+        "api_name",
+        "branch",
+        "lambda_func"
     ],
     "properties": {
-        "name": {
+        "stack": {
             "type": "string",
-            "pattern": "^[A-z0-9-]+$"
+            "pattern": "^[A-Za-z0-9\\-]+$"
         },
-        "default_runtime": {
+        "api_name": {
             "type": "string",
-            "pattern": "^[A-z0-9_]+$"
+            "pattern": "^[a-z0-9\\-]+$"
         },
-        "stage": {
-            "$ref": "#/$defs/stage_dict"
+        "branch": {
+            "$ref": "#/$defs/branch_dict"
         },
         "s3": {
             "$ref": "#/$defs/s3_dict"
@@ -34,33 +37,61 @@
         "batch_func": {
             "$ref": "#/$defs/batch_dict"
         },
+        "amplify": {
+            "$ref": "#/$defs/amplify_dict"
+        },
         "ref": {
             "$ref": "#/$defs/ref"
+        },
+        "repository_root": {
+            "type": "string",
+            "pattern": "^https://github\\.com/[a-z0-9\\-]+$",
+            "description": "github user url which is used as source of Web App"
+        },
+        "tags": {
+            "$ref": "#/$defs/tag_dict"
+        },
+        "default_runtime": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9_]+$"
         }
     },
     "$defs": {
-        "stage_dict": {
+        "tag_dict": {
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^\\$?[A-z0-9]+$": {
-                    "$ref": "#/$defs/stage"
+                "^[A-Za-z0-9_\\-\\.]+$": {
+                    "type": "string"
                 }
             }
         },
-        "stage": {
+        "branch_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-Za-z0-9\\-]+$": {
+                    "$ref": "#/$defs/branch"
+                }
+            }
+        },
+        "branch": {
             "type": "object",
             "additionalProperties": false,
             "required": [
-                "branch"
+                "apigw_stage"
             ],
             "properties": {
-                "branch": {
+                "apigw_stage": {
+                    "type": "string",
+                    "pattern": "^\\$?[A-Za-z0-9]+$"
+                },
+                "amplify_type": {
                     "type": "string"
                 },
                 "bucket": {
                     "type": "string",
-                    "pattern": "^[A-z0-9\\-\\.]+$"
+                    "pattern": "^[A-Za-z0-9\\-\\.]+$"
                 },
                 "notification-url": {
                     "type": "string"
@@ -71,7 +102,7 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-Za-z0-9\\-\\.]+$": {
+                "^[a-z0-9\\-\\.]+$": {
                     "$ref": "#/$defs/s3"
                 }
             }
@@ -92,27 +123,69 @@
             "type": "object",
             "additionalProperties": false,
             "required": [
-                "route"
+                "lambda_integration"
             ],
             "properties": {
                 "description": {
                     "type": "string"
                 },
-                "route": {
-                    "$ref": "#/$defs/route_dict"
+                "lambda_integration": {
+                    "$ref": "#/$defs/lambda_integration_dict"
                 }
             }
         },
-        "route_dict": {
+        "lambda_integration_dict": {
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-z0-9_]+$": {
+                "^[A-Za-z0-9_]+$": {
+                    "$ref": "#/$defs/lambda_integration"
+                }
+            }
+        },
+        "lambda_integration": {
+            "type": "object",
+            "additionalProperties": false,
+            "oneOf": [
+                {
+                    "required": [
+                        "route"
+                    ]
+                },
+                {
+                    "required": [
+                        "route_openapi"
+                    ]
+                }
+            ],
+            "properties": {
+                "cognito_auth": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": [
+                        "user",
+                        "app"
+                    ],
+                    "properties": {
+                        "user": {
+                            "type": "string"
+                        },
+                        "app": {
+                            "type": "string",
+                            "pattern": "^[A-Za-z0-9\\-]+$"
+                        }
+                    }
+                },
+                "route": {
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "description": "route key e.g. GET /func_name/{path_param_name}"
+                        "description": "route definition e.g. GET /func_name/{path_param_name}"
                     }
+                },
+                "route_openapi": {
+                    "type": "string",
+                    "description": "path to openapi definition yaml"
                 }
             }
         },
@@ -129,7 +202,7 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-z0-9_]+$": {
+                "^[A-Za-z0-9_\\-]+$": {
                     "$ref": "#/$defs/sns"
                 }
             }
@@ -141,11 +214,8 @@
                 "description": {
                     "type": "string"
                 },
-                "lambda": {
-                    "type": "array",
-                    "items": {
-                        "type": "string"
-                    }
+                "lambda_func": {
+                    "$ref": "#/$defs/lambda_dict"
                 }
             }
         },
@@ -153,7 +223,7 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-z0-9_]+$": {
+                "^[A-Za-z0-9_]+$": {
                     "$ref": "#/$defs/lambda"
                 }
             }
@@ -164,7 +234,7 @@
             "properties": {
                 "runtime": {
                     "type": "string",
-                    "pattern": "^[A-z0-9_]+$"
+                    "pattern": "^[A-Za-z0-9_]+$"
                 },
                 "code": {
                     "type": "string"
@@ -177,7 +247,7 @@
                 },
                 "queue_next": {
                     "type": "string",
-                    "pattern": "^[A-z0-9_]+$"
+                    "pattern": "^[A-Za-z0-9_]+$"
                 },
                 "layer_list": {
                     "type": "array",
@@ -191,7 +261,7 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-z0-9_]+$": {
+                "^[A-Za-z0-9_]+$": {
                     "$ref": "#/$defs/batch"
                 }
             }
@@ -202,7 +272,7 @@
             "properties": {
                 "queue_state_lambda": {
                     "type": "string",
-                    "pattern": "^[A-z0-9_]+$"
+                    "pattern": "^[A-Za-z0-9_]+$"
                 },
                 "maxv_cpus": {
                     "type": "number"
@@ -212,6 +282,38 @@
                 },
                 "vcpu": {
                     "type": "number"
+                }
+            }
+        },
+        "amplify_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-Za-z0-9\\-]+$": {
+                    "$ref": "#/$defs/amplify"
+                }
+            }
+        },
+        "amplify": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "domain"
+            ],
+            "properties": {
+                "domain": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9\\-\\.]+$"
+                },
+                "cognito_auth": {
+                    "type": "string"
+                },
+                "deploy_event_sns": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_\\-]+$"
+                },
+                "description": {
+                    "type": "string"
                 }
             }
         },
@@ -225,6 +327,30 @@
                 },
                 "vpc": {
                     "$ref": "#/$defs/vpc"
+                },
+                "cognito": {
+                    "$ref": "#/$defs/cognito_dict"
+                }
+            }
+        },
+        "cognito_dict": {
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[A-Za-z0-9_]+$": {
+                    "$ref": "#/$defs/cognito"
+                }
+            }
+        },
+        "cognito": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+                "user_pool_id"
+            ],
+            "properties": {
+                "user_pool_id": {
+                    "type": "string"
                 }
             }
         },
@@ -232,10 +358,10 @@
             "type": "object",
             "additionalProperties": false,
             "patternProperties": {
-                "^[A-z0-9_]+$": {
+                "^[A-Za-z0-9_]+$": {
                     "type": "string",
                     "description": "layer name without version or layer arn",
-                    "pattern": "^[A-z0-9_\\-:]+$"
+                    "pattern": "^[A-Za-z0-9_\\-:]+$"
                 }
             }
         },

@@ -1,0 +1,151 @@
+{
+    "stack": "sample-api-stack",
+    "api_name": "sample-api",
+    "repository_root": "https://github.com/uedake",
+    "tags": {
+        "tag_key": "tag_val"
+    },
+    "default_runtime": "PYTHON_3_13",
+    "branch": {
+        "main": {
+            "apigw_stage": "$default",
+            "bucket": "{$api_name}-{$account}",
+            "amplify_type": "BETA"
+        },
+        "dev": {
+            "apigw_stage": "dev",
+            "bucket": "{$api_name}-{$account}",
+            "amplify_type": "DEVELOPMENT"
+        },
+        "test": {
+            "apigw_stage": "test",
+            "bucket": "{$api_name}-test-{$account}",
+            "amplify_type": "EXPERIMENTAL"
+        }
+    },
+    "s3": {
+        "{$api_name}-{$account}": {
+            "public_read": false
+        },
+        "{$api_name}-test-{$account}": {
+            "public_read": false
+        }
+    },
+    "apigw": {
+        "description": "api for calling sample lambdas",
+        "lambda_integration": {
+            "pipeline_entry": {
+                "route": [
+                    "ANY /pipeline_entry",
+                    "ANY /pipeline_entry/{z}"
+                ]
+            },
+            "s3_access": {
+                "route_openapi": "src_lambda/s3_access/openapi.yaml"
+            },
+            "echo_with_auth": {
+                "cognito_auth": {
+                    "user": "developer",
+                    "app": "aws-sample-app"
+                },
+                "route": [
+                    "ANY /echo_with_auth/{path1}/{path2}",
+                    "ANY /echo_with_auth/{path1}",
+                    "ANY /echo_with_auth"
+                ]
+            },
+            "echo": {
+                "route": [
+                    "ANY /echo/{path1}/{path2}",
+                    "ANY /echo/{path1}",
+                    "ANY /echo"
+                ]
+            },
+            "numpy": {
+                "route": [
+                    "ANY /numpy",
+                    "ANY /numpy/{z}"
+                ]
+            }
+        }
+    },
+    "sns": {
+        "amplify_state_change": {
+            "description": "CI/CD用",
+            "lambda_func": {
+                "notify_teams": {
+                    "code": "src_lambda/notify_teams/src",
+                    "timeout": 3
+                }
+            }
+        }
+    },
+    "lambda_func": {
+        "pipeline_entry": {
+            "code": "src_lambda/pipeline_entry/src",
+            "timeout": 3,
+            "queue_next": "pipeline_process"
+        },
+        "pipeline_process": {
+            "code": "src_lambda/pipeline_process/src",
+            "timeout": 10,
+            "queue": {
+                "additional_timeout": 10
+            }
+        },
+        "s3_access": {
+            "code": "src_lambda/s3_access/src",
+            "timeout": 10
+        },
+        "echo": {
+            "code": "src_lambda/echo/src",
+            "timeout": 3
+        },
+        "echo_with_auth": {
+            "code": "src_lambda/echo/src",
+            "timeout": 3
+        },
+        "called_by_batch": {
+            "code": "src_lambda/called_by_batch/src",
+            "timeout": 3
+        },
+        "numpy": {
+            "code": "src_lambda/numpy/src",
+            "timeout": 3,
+            "layer_list": [
+                "pandas_python313"
+            ]
+        }
+    },
+    "batch_func": {
+        "convert": {
+            "queue_state_lambda": "called_by_batch",
+            "maxv_cpus": 40,
+            "memory": 8192,
+            "vcpu": 4
+        }
+    },
+    "amplify": {
+        "aws-sample-app": {
+            "description": "サンプルアプリ",
+            "cognito_auth": "developer",
+            "domain": "wal-test.com",
+            "deploy_event_sns": "amplify_state_change"
+        }
+    },
+    "ref": {
+        "lambda_layer": {
+            "pandas_python313": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python313:4",
+            "pandas_python312": "arn:aws:lambda:ap-northeast-1:336392948345:layer:AWSSDKPandas-Python312:19"
+        },
+        "vpc": {
+            "subnet_id_list": [],
+            "security_group_id": ""
+        },
+        "cognito": {
+            "developer": {
+                "user_pool_id": "ap-northeast-1_kw2EVel03"
+            }
+        }
+    }
+}

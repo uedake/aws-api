@@ -1,0 +1,51 @@
+openapi: 3.1.0
+info:
+  title: Test API for s3 access
+  version: 1.0.0
+paths:
+  /s3_access/{s3Key}:
+    get:
+      summary: read file form s3
+      parameters:
+        - name: s3Key
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/S3AccessResponse"
+        "500":
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+components:
+  schemas:
+    S3AccessResponse:
+      type: object
+      required: [bucket, input_s3_key, exist, output_s3_key]
+      properties:
+        bucket:
+          type: string
+        input_s3_key:
+          type: string
+        exist:
+          type: bool
+        text_content:
+          type: ["string", "null"]
+        output_s3_key:
+          type: string
+    Error:
+      type: object
+      required: [msg, tb]
+      properties:
+        msg:
+          type: string
+        tb:
+          type: string

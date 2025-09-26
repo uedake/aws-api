@@ -2,7 +2,7 @@
 
 pythonランタイムのAWS Lambdaレイヤーを作成する為のdockerイメージです
 
-- 本イメージを用いると例えばpython 3.12用のLambdaレイヤーを作成可能です
+- 本イメージを用いるとpython用のLambdaレイヤーを作成可能です
 - その他、amazonlinuxのversionとpythonのversionを指定することで任意のpythonランタイムのLambdaレイヤーも作成可能です
 - OSとpythonランタイムの関係は下記を参照してください
   - https://docs.aws.amazon.com/lambda/latest/dg/lambda-runtimes.html
@@ -24,16 +24,16 @@ lambdaレイヤーの作成からアップロードまで一貫して行いま�
 - <pip_install_args>
   - レイヤーに入れたいpythonパッケージを指定
 
-例１：下記ではpython3.12.3向けにlambdaレイヤーを作成します
+例１：下記ではpython3.13向けにlambdaレイヤーを作成します
 ```
 cd path/to/lambda_layer
 python craete_upload.py <layer_name> <pip_install_args>
 ```
 
-例２：下記はpython3.11.0向けにlambdaレイヤーを作成します
+例２：下記はpython3.12.3向けにlambdaレイヤーを作成します
 ```
 cd path/to/lambda_layer
-python craete_upload.py -a 2 -p 3.11.0 <layer_name> <pip_install_args>
+python craete_upload.py -a 2 -p 3.12.3 <layer_name> <pip_install_args>
 ```
 
 <pip_install_args>で-rのオプションを指定する場合は"-r mount/sample/requirements.txt"のように""で囲い、mountフォルダからのパスをしてしてください。
@@ -52,16 +52,16 @@ python craete_upload.py py3-12-sample "-r sample/requirements.txt"
 
 1. dockerイメージをbuild
 
-例１：下記ではpython3.12.3向けにlambdaレイヤーを作成します
+例１：下記ではpython3.13向けにlambdaレイヤーを作成します
 ```
 cd lambda_layer/docker/amazonlinux2023
-docker build -t lambda-layer-build --build-arg PYTHON_VER=3.12.3 .
+docker build -t lambda-layer-build --build-arg PYTHON_VER=3.13 .
 ```
 
-例２：下記ではpython3.11.0向けにlambdaレイヤーを作成します
+例２：下記ではpython3.12.3向けにlambdaレイヤーを作成します
 ```
 cd lambda_layer/docker/amazonlinux2
-docker build -t lambda-layer-build --build-arg PYTHON_VER=3.11.0 .
+docker build -t lambda-layer-build --build-arg PYTHON_VER=3.12.3 .
 ```
 
 2. dockerイメージをrunしてLambdaレイヤー（zip）を作成

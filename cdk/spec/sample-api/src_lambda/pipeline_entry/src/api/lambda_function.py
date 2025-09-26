@@ -1,7 +1,7 @@
 import json
 import os
 
-from ..awsutil.aws_util import (
+from awsutil.aws_util import (
     ApiGatewayEventAnalyzer,
     WebApiException,
     ErrorCode,
