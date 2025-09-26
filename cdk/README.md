@@ -55,6 +55,7 @@ cdkを使用してAWS上にWebAPI及びWebAPIを使用するWebAppのリソー�
 |SQS|キュー名|"{api_name}-{branch_name}-{lambda_key}_waiting"|
 |SQS|キュー名|"{api_name}-{branch_name}-{lambda_key}_dead"|
 |ECR|レジストリ名|"{api_name}-{batch_key}"|
+|Batch|Batch名|"{api_name}-{branch_name}-{batch_key}"|
 |Batch|dockerイメージのtag名|"{account}.dkr.ecr.{region}.amazonaws.com/{api_name}-{batch_key}:{branch_name}"|
 
 ## API gatewayのアクセスに認証をかけたい場合

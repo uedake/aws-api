@@ -19,6 +19,10 @@
             "type": "string",
             "pattern": "^[a-z0-9\\-]+$"
         },
+        "lambda_handler":{
+            "type": "string",
+            "pattern": "^[a-z0-9_\\.]+$"
+        },
         "branch": {
             "$ref": "#/$defs/branch_dict"
         },
@@ -154,7 +158,12 @@
                 },
                 {
                     "required": [
-                        "route_openapi"
+                        "openapi_yaml"
+                    ]
+                },
+                {
+                    "required": [
+                        "fastapi_app"
                     ]
                 }
             ],
@@ -183,9 +192,13 @@
                         "description": "route definition e.g. GET /func_name/{path_param_name}"
                     }
                 },
-                "route_openapi": {
+                "openapi_yaml": {
                     "type": "string",
                     "description": "path to openapi definition yaml"
+                },
+                "fastapi_app": {
+                    "type": "string",
+                    "description": "fastapi app variable name"
                 }
             }
         },

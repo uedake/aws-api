@@ -4,3 +4,6 @@ jsonschema
 boto3
 boto3-stubs[essential]
 pyyaml
+fastapi
+pydantic
+mangum

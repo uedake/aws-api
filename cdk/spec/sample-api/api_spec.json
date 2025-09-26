@@ -1,6 +1,7 @@
 {
     "stack": "sample-api-stack",
     "api_name": "sample-api",
+    "lambda_handler": "api.lambda_function.lambda_handler",
     "repository_root": "https://github.com/uedake",
     "tags": {
         "tag_key": "tag_val"
@@ -41,7 +42,7 @@
                 ]
             },
             "s3_access": {
-                "route_openapi": "src_lambda/s3_access/openapi.yaml"
+                "openapi_yaml": "src_lambda/s3_access/openapi.yaml"
             },
             "echo_with_auth": {
                 "cognito_auth": {
@@ -62,10 +63,7 @@
                 ]
             },
             "numpy": {
-                "route": [
-                    "ANY /numpy",
-                    "ANY /numpy/{z}"
-                ]
+                "fastapi_app": "app"
             }
         }
     },

@@ -1,8 +1,6 @@
 import json
 import os
 
-import yaml
-
 from aws_cdk import Stack, Tags
 from aws_cdk.aws_lambda import Code, Function, Runtime
 from aws_cdk.aws_sns import Topic
@@ -20,11 +18,12 @@ from .creator.batch_creator import BatchCreator
 from .creator.s3_creator import S3Creator
 from .creator.sns_creator import SNSCreator
 from .creator.amplify_creator import AmplifyCreator
+from .creator.reference_solver import ReferenceSolver, NameSolver
 
-from .creator.reference_solver import ReferenceSolver
+from .openapi_util import OpenApiSchema
 
 
-class WebSystemParam:
+class WebSystemCreator:
     ENV_BUCKET_KEY = "Bucket"
     ENV_BRANCH_KEY = "Branch"
     ENV_URL_KEY = "NotificationUrl"
@@ -33,22 +32,31 @@ class WebSystemParam:
 
     def __init__(
         self,
+        stack: Stack,
         api_name: str,
         branch_spec_dict: dict[str, dict],
-        ref: ReferenceSolver,
+        lambda_handler: str,
         *,
+        ref_spec: dict[str, dict] | None = None,
+        tags: dict[str, str] | None = None,
         root_path: str | None = None,
         default_runtime: str | None = None,
         repository_root: str | None = None,
         repository_token: str | None = None,
     ):
+        self.stack = stack
         self.api_name = api_name
         self.branch_spec_dict = branch_spec_dict
-        self.ref = ref
+        self.lambda_handler = lambda_handler
+
+        self.ref = ReferenceSolver(self.stack, ref_spec)
+        self.tags = tags
         self.root_path = root_path
         self.default_runtime = default_runtime
         self.repository_root = repository_root
         self.repository_token = repository_token
+
+        self.name = NameSolver(self.stack, api_name)
 
     def resolve_path(self, path: str) -> str:
         if self.root_path is None:
@@ -88,87 +96,15 @@ class WebSystemParam:
                             f"lambda '{lambda_spec["queue_next"]}' spec should have `queue` key: requested by queue_next of `{lambda_key}`"
                         )
 
-                env_dict[self.ENV_NEXT_SQS_KEY] = self.get_queue_name(
-                    branch_name, lambda_spec["queue_next"]
+                env_dict[self.ENV_NEXT_SQS_KEY] = self.name.get_queue_name(
+                    lambda_spec["queue_next"],
+                    branch_name,
                 )
 
         return env_dict
 
-    def get_lambda_name(self, branch_name: str, lambda_key: str):
-        name_prefix = (
-            self.api_name
-            if branch_name is None
-            else "{}-{}".format(self.api_name, branch_name)
-        )
-        return "{}-{}".format(name_prefix, lambda_key)
-
-    def get_queue_name(self, branch_name: str, lambda_key: str, dead=False):
-        name_prefix = (
-            self.api_name
-            if branch_name is None
-            else "{}-{}".format(self.api_name, branch_name)
-        )
-        queue_prefix = "{}-{}".format(name_prefix, lambda_key)
-
-        if dead:
-            return queue_prefix + "_dead"
-        else:
-            return queue_prefix + "_waiting"
-
-
-class WebSystemStack(Stack):
-    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
-        """
-        construct後にcreate()を呼び出すことで定義に従ってAWSリソースを生成します。
-        """
-        super().__init__(scope, construct_id, **kwargs)
-
     def create(
         self,
-        spec_dict: dict,
-        *,
-        access_token: str | None = None,
-        root_path: str | None = None,
-        schema_path: str | None = None,
-    ):
-        print("-----------start reading specs------------")
-        # schema_check
-        if schema_path is not None:
-            with open(schema_path) as f:
-                json_schema = json.load(f)
-
-            Draft202012Validator.check_schema(json_schema)
-            Draft202012Validator(json_schema).validate(spec_dict)
-
-        param = WebSystemParam(
-            spec_dict["api_name"],
-            spec_dict["branch"],
-            ReferenceSolver(self, spec_dict.get("ref")),
-            root_path=root_path,
-            default_runtime=spec_dict.get("default_runtime"),
-            repository_root=spec_dict.get("repository_root"),
-            repository_token=access_token,
-        )
-
-        self._create(
-            param,
-            spec_dict["lambda_func"],
-            apigw_spec=spec_dict.get("apigw"),
-            s3_spec_dict=spec_dict.get("s3"),
-            sns_spec_dict=spec_dict.get("sns"),
-            batch_spec_dict=spec_dict.get("batch_func"),
-            amplify_spec_dict=spec_dict.get("amplify"),
-        )
-
-        if "tags" in spec_dict:
-            for key, val in spec_dict["tags"].items():
-                Tags.of(self).add(key, val)
-
-        print("----------- complete ------------")
-
-    def _create(
-        self,
-        param: WebSystemParam,
         lambda_spec_dict: dict[str, dict],
         *,
         apigw_spec: dict | None = None,
@@ -205,28 +141,23 @@ class WebSystemStack(Stack):
         # create topics (for each topic spec)
         if sns_spec_dict is not None:
             topic_dict = self._craete_sns(
-                param,
                 sns_spec_dict,
             )
-            param.ref.set_topic(topic_dict)
+            self.ref.set_topic(topic_dict)
 
         if amplify_spec_dict is not None:
-            if param.repository_token is None:
+            if self.repository_token is None:
                 raise Exception("need repository_token of github for amplify")
-            if param.repository_root is None:
+            if self.repository_root is None:
                 raise Exception("need repository_root of github for amplify")
             client_dict = self._create_app(
-                param,
                 amplify_spec_dict,
             )
-            param.ref.set_cognito_client(client_dict)
+            self.ref.set_cognito_client(client_dict)
 
         if apigw_spec is not None:
-            api = self._create_apigw(
-                param,
-                apigw_spec,
-            )
-            param.ref.set_api(api)
+            api = self._create_apigw(apigw_spec, lambda_spec_dict)
+            self.ref.set_api(api)
 
         if s3_spec_dict is not None:
             self._create_s3(s3_spec_dict)
@@ -234,14 +165,12 @@ class WebSystemStack(Stack):
         # create repository (for each batch_func spec)
         if batch_spec_dict is not None:
             for batch_key in batch_spec_dict.keys():
-                ECRCreator(self, "{}-{}".format(param.api_name, batch_key))
+                ECRCreator(self.stack, self.name.get_repo_name(batch_key))
 
         # for each branch
-        for branch_name in param.branch_spec_dict:
-
+        for branch_name in self.branch_spec_dict:
             # create lambdas (for each branch and each lambda_func spec)
             lambda_func_dict = self._create_lambda(
-                param,
                 lambda_spec_dict,
                 branch_name=branch_name,
                 apigw_spec=apigw_spec,
@@ -250,36 +179,38 @@ class WebSystemStack(Stack):
             # create batchs (for each branch and each batch_func spec)
             if batch_spec_dict is not None:
                 self._create_batch(
-                    param,
                     branch_name,
                     batch_spec_dict,
                     lambda_func_dict,
                 )
 
+        if self.tags is not None:
+            for key, val in self.tags.items():
+                Tags.of(self.stack).add(key, val)
+
     def _create_app(
         self,
-        param: WebSystemParam,
         amplify_spec_dict: dict[str, dict],
     ) -> dict[str, UserPoolClient]:
         client_dict: dict[str, UserPoolClient] = {}
         for app_name, app_spec in amplify_spec_dict.items():
             user_pool_id = (
-                param.ref.cognito[app_spec["cognito_auth"]]["user_pool_id"]
+                self.ref.cognito[app_spec["cognito_auth"]]["user_pool_id"]
                 if "cognito_auth" in app_spec
                 else None
             )
             amplify = AmplifyCreator(
-                self,
+                self.stack,
                 app_name,
                 {
                     branch_name: {
                         "stage": branch_spec["amplify_type"],
-                        "env": param.construct_env_dict(branch_name),
+                        "env": self.construct_env_dict(branch_name),
                     }
-                    for branch_name, branch_spec in param.branch_spec_dict.items()
+                    for branch_name, branch_spec in self.branch_spec_dict.items()
                 },
-                param.repository_root,
-                param.repository_token,
+                self.repository_root,
+                self.repository_token,
                 app_spec["domain"],
                 description=app_spec.get("description"),
             )
@@ -287,7 +218,7 @@ class WebSystemStack(Stack):
                 client = amplify.create_cognito_login_page(user_pool_id)
                 client_dict[app_name] = client
             if "deploy_event_sns" in app_spec:
-                topic = param.ref.get_topic(app_spec["deploy_event_sns"])
+                topic = self.ref.get_topic(app_spec["deploy_event_sns"])
                 amplify.create_event_bridge(topic.topic_arn)
         return client_dict
 
@@ -297,7 +228,7 @@ class WebSystemStack(Stack):
     ):
         for bucket_name, s3_spec in s3_spec_dict.items():
             S3Creator(
-                self,
+                self.stack,
                 bucket_name,
                 public_read=s3_spec.get("public_read"),
                 website_hosting=s3_spec.get("website_hosting"),
@@ -305,38 +236,44 @@ class WebSystemStack(Stack):
 
     def _create_apigw(
         self,
-        param: WebSystemParam,
         apigw_spec: dict,
+        lambda_spec_dict: dict[str, dict],
     ) -> CfnApi:
         lambda_integration_spec: dict[str, dict] = apigw_spec["lambda_integration"]
 
-        for route_spec in lambda_integration_spec.values():
-            if "route_openapi" in route_spec:
-                route_list = []
-                with open(param.resolve_path(route_spec["route_openapi"])) as f:
-                    data = yaml.safe_load(f)
-                    for path, method_dict in data["paths"].items():
-                        for method in method_dict:
-                            route_list.append(f"{method.upper()} {path}")
-                route_spec["route"] = route_list
+        for lambda_key, route_spec in lambda_integration_spec.items():
+            assert lambda_key in lambda_spec_dict
+            if "openapi_yaml" in route_spec:
+                openapi = OpenApiSchema.from_yaml(
+                    self.resolve_path(route_spec["openapi_yaml"])
+                )
+                route_spec["route"] = openapi.get_apigw_route()
+            if "fastapi_app" in route_spec:
+                lambda_spec = lambda_spec_dict[lambda_key]
+                openapi = OpenApiSchema.from_fastapi_modeule(
+                    ".".join(self.lambda_handler.split(".")[0:-1]),
+                    self.resolve_path(lambda_spec["code"]),
+                    app_name=route_spec["fastapi_app"],
+                )
+                route_spec["route"] = openapi.get_apigw_route()
 
         api_creator = (
             ApiGatewayCreator(
-                self,
-                param.api_name,
+                self.stack,
+                self.api_name,
                 apigw_spec.get("description"),
             )
             .add_stages(
                 {
                     branch_spec["apigw_stage"]: branch_name
-                    for branch_name, branch_spec in param.branch_spec_dict.items()
+                    for branch_name, branch_spec in self.branch_spec_dict.items()
                 }
             )
             .add_lambda_integrations(
                 lambda_integration_spec,
                 cognito=CognitoRef(
-                    user_pool_dict=param.ref.cognito,
-                    client_id_dict=param.ref.get_cognito_client_id_dict(),
+                    user_pool_dict=self.ref.cognito,
+                    client_id_dict=self.ref.get_cognito_client_id_dict(),
                 ),
             )
         )
@@ -344,14 +281,13 @@ class WebSystemStack(Stack):
 
     def _craete_sns(
         self,
-        param: WebSystemParam,
         sns_spec_dict: dict[str, dict],
     ) -> dict[str, Topic]:
         topic_dict = {}
         for topic_key, sns_spec in sns_spec_dict.items():
             sns = SNSCreator(
-                self,
-                "{}-{}".format(param.api_name, topic_key),
+                self.stack,
+                self.name.get_topic_name(topic_key),
                 sns_spec.get("description"),
             ).called_by_event_bridge()
             topic_dict[topic_key] = sns.topic
@@ -361,7 +297,6 @@ class WebSystemStack(Stack):
 
                 # create lambdas (for each lambda_func spec)
                 self._create_lambda(
-                    param,
                     lambda_spec_dict,
                     sender_topic=sns.topic,
                 )
@@ -370,7 +305,6 @@ class WebSystemStack(Stack):
 
     def _create_lambda(
         self,
-        param: WebSystemParam,
         lambda_spec_dict: dict[str, dict],
         *,
         branch_name: str | None = None,
@@ -378,11 +312,9 @@ class WebSystemStack(Stack):
         sender_topic: Topic | None = None,
     ) -> dict[str, Function]:
 
-        layer_dict = param.ref.lambda_layer
+        layer_dict = self.ref.lambda_layer
         lambda_func_dict = {}
         for lambda_key, lambda_spec in lambda_spec_dict.items():
-            lambda_name = param.get_lambda_name(branch_name, lambda_key)
-
             layers = (
                 [layer_dict[layer_id] for layer_id in lambda_spec["layer_list"]]
                 if "layer_list" in lambda_spec
@@ -390,24 +322,25 @@ class WebSystemStack(Stack):
             )
 
             lambda_creator = LambdaCreator(
-                self,
-                lambda_name,
+                self.stack,
+                self.name.get_lambda_name(lambda_key, branch_name),
                 runtime=getattr(
                     Runtime,
                     lambda_spec.get("runtime", ""),
-                    getattr(Runtime, param.default_runtime, None),
+                    getattr(Runtime, self.default_runtime, None),
                 ),
                 code=(
-                    Code.from_asset(param.resolve_path(lambda_spec["code"]))
+                    Code.from_asset(self.resolve_path(lambda_spec["code"]))
                     if "code" in lambda_spec
                     else None
                 ),
+                handler=self.lambda_handler,
                 layers=layers,
-                env_dict=param.construct_env_dict(
+                env_dict=self.construct_env_dict(
                     branch_name, lambda_key, lambda_spec_dict
                 ),
                 test_schema_path=(
-                    param.resolve_path(lambda_spec.get("test"))
+                    self.resolve_path(lambda_spec.get("test"))
                     if "test" in lambda_spec
                     else None
                 ),
@@ -419,7 +352,7 @@ class WebSystemStack(Stack):
                 apigw_spec is not None
                 and lambda_key in apigw_spec["lambda_integration"]
             ):
-                lambda_creator.called_by_apigateway(param.ref.get_apigw_arn())
+                lambda_creator.called_by_apigateway(self.ref.get_apigw_arn())
 
             if sender_topic is not None:
                 lambda_creator.called_by_sns(sender_topic)
@@ -430,9 +363,9 @@ class WebSystemStack(Stack):
                 base_timeout = lambda_spec.get("timeout", 3)
 
                 sqs_creator = SQSCreator(
-                    self,
-                    param.get_queue_name(branch_name, lambda_key),
-                    param.get_queue_name(branch_name, lambda_key, True),
+                    self.stack,
+                    self.name.get_queue_name(lambda_key, branch_name),
+                    self.name.get_queue_name(lambda_key, branch_name, True),
                     visibility_timeout_sec=base_timeout + additional_timeout,
                 )
                 lambda_creator.called_by_sqs(sqs_creator.queue)
@@ -441,30 +374,23 @@ class WebSystemStack(Stack):
 
     def _create_batch(
         self,
-        param: WebSystemParam,
         branch_name: str,
         batch_spec_dict: dict[str, dict],
         lambda_func_dict: dict[str, Function],
     ):
-        if param.ref.vpc is None:
+        if self.ref.vpc is None:
             print("[Warn] cannot create batch func: vpc is not defined in spec")
             return
 
-        env_dict = param.construct_env_dict(branch_name)
+        env_dict = self.construct_env_dict(branch_name)
         for batch_key, batch_spec in batch_spec_dict.items():
             BatchCreator(
                 self,
-                "{}-{}-{}".format(param.api_name, branch_name, batch_key),
-                "{}.dkr.ecr.{}.amazonaws.com/{}-{}:{}".format(
-                    self.account,
-                    self.region,
-                    param.api_name,
-                    batch_key,
-                    branch_name,
-                ),
+                self.name.get_batch_name(batch_key, branch_name),
+                self.name.get_container_url(batch_key, branch_name),
                 batch_spec["maxv_cpus"],
-                param.ref.vpc["subnet_id_list"],
-                param.ref.vpc["security_group_id"],
+                self.ref.vpc["subnet_id_list"],
+                self.ref.vpc["security_group_id"],
                 queue_state_lambda=lambda_func_dict[
                     batch_spec.get("queue_state_lambda")
                 ],
@@ -472,3 +398,52 @@ class WebSystemStack(Stack):
                 memory=batch_spec.get("memory"),
                 vcpu=batch_spec.get("vcpu"),
             )
+
+
+class WebSystemStack(Stack):
+    def __init__(self, scope: Construct, construct_id: str, **kwargs) -> None:
+        """
+        construct後にcreate()を呼び出すことで定義に従ってAWSリソースを生成します。
+        """
+        super().__init__(scope, construct_id, **kwargs)
+
+    def create(
+        self,
+        spec_dict: dict,
+        *,
+        access_token: str | None = None,
+        root_path: str | None = None,
+        schema_path: str | None = None,
+    ):
+        print("-----------start reading specs------------")
+        # schema_check
+        if schema_path is not None:
+            with open(schema_path) as f:
+                json_schema = json.load(f)
+
+            Draft202012Validator.check_schema(json_schema)
+            Draft202012Validator(json_schema).validate(spec_dict)
+
+        websystem = WebSystemCreator(
+            self,
+            spec_dict["api_name"],
+            spec_dict["branch"],
+            spec_dict["lambda_handler"],
+            ref_spec=spec_dict.get("ref"),
+            tags=spec_dict.get("tags"),
+            root_path=root_path,
+            default_runtime=spec_dict.get("default_runtime"),
+            repository_root=spec_dict.get("repository_root"),
+            repository_token=access_token,
+        )
+
+        websystem.create(
+            spec_dict["lambda_func"],
+            apigw_spec=spec_dict.get("apigw"),
+            s3_spec_dict=spec_dict.get("s3"),
+            sns_spec_dict=spec_dict.get("sns"),
+            batch_spec_dict=spec_dict.get("batch_func"),
+            amplify_spec_dict=spec_dict.get("amplify"),
+        )
+
+        print("----------- complete ------------")

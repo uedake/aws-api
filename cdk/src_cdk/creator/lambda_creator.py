@@ -1,14 +1,12 @@
 from __future__ import annotations
 
 from aws_cdk import Duration, Size, Stack
-from aws_cdk.aws_apigatewayv2 import CfnApi
 from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal
 from aws_cdk.aws_lambda import Code, FileSystem, Function, Runtime
 from aws_cdk.aws_eventschemas import CfnSchema
 from aws_cdk.aws_lambda_event_sources import SqsEventSource, SnsEventSource
 from aws_cdk.aws_sqs import Queue
 from aws_cdk.aws_sns import Topic
-
 
 class LambdaCreator:
     def __init__(
@@ -17,6 +15,7 @@ class LambdaCreator:
         lambda_name: str,
         runtime: Runtime | None = None,
         code: Code | None = None,
+        handler: str|None = None,
         *,
         timeout: int | None = None,
         memory_size: int | None = None,
@@ -34,6 +33,7 @@ class LambdaCreator:
             lambda_name,
             runtime if runtime is not None else Runtime.PYTHON_3_12,
             code if code is not None else Code.from_asset("initial_lambda"),
+            handler=handler,
             timeout=timeout,
             memory_size=memory_size,
             storage_size=storage_size,
@@ -53,6 +53,7 @@ class LambdaCreator:
         runtime: Runtime,
         code: Code,
         *,
+        handler: str|None=None,
         timeout: int | None = None,
         memory_size: int | None = None,
         storage_size: int | None = None,
@@ -64,7 +65,7 @@ class LambdaCreator:
         func = Function(
             self.scope,
             lambda_name,
-            handler="api.lambda_function.lambda_handler",
+            handler=handler,
             function_name=lambda_name,
             code=code,
             runtime=runtime,

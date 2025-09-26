@@ -7,6 +7,50 @@ from aws_cdk.aws_cognito import UserPoolClient
 from ..awsutil.aws_check_util import LambdaLayerChecker
 
 
+class NameSolver:
+    def __init__(self, stack: Stack, api_name: str):
+        self.stack = stack
+        self.api_name = api_name
+
+    def get_lambda_name(self, lambda_key: str, branch_name: str | None = None):
+        if branch_name is not None:
+            return "{}-{}-{}".format(
+                self.api_name,
+                branch_name,
+                lambda_key,
+            )
+        else:
+            return "{}-{}".format(
+                self.api_name,
+                lambda_key,
+            )
+
+    def get_repo_name(self, batch_key: str):
+        return "{}-{}".format(self.api_name, batch_key)
+
+    def get_batch_name(self, batch_key: str, branch_name: str):
+        return "{}-{}-{}".format(self.api_name, branch_name, batch_key)
+
+    def get_container_url(self, batch_key: str, branch_name: str):
+        return "{}.dkr.ecr.{}.amazonaws.com/{}-{}:{}".format(
+            self.stack.account,
+            self.stack.region,
+            self.api_name,
+            batch_key,
+            branch_name,
+        )
+
+    def get_queue_name(self, lambda_key: str, branch_name: str, dead=False):
+        queue_prefix = self.get_lambda_name(lambda_key, branch_name)
+        if dead:
+            return queue_prefix + "_dead"
+        else:
+            return queue_prefix + "_waiting"
+
+    def get_topic_name(self, topic_key: str):
+        return "{}-{}".format(self.api_name, topic_key)
+
+
 class ReferenceSolver:
     def __init__(
         self,

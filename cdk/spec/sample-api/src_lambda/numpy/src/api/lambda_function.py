@@ -1,9 +1,13 @@
 import traceback
 
-import numpy as np
-from fastapi import FastAPI, Body
+from fastapi import FastAPI
 from pydantic import BaseModel
 from mangum import Mangum
+
+try:
+    import numpy as np
+except Exception:
+    print("[WARN] numpy not found")
 
 DEBUG_MODE = True
 app = FastAPI()

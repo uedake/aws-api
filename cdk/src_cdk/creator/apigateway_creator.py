@@ -12,6 +12,8 @@ from aws_cdk.aws_apigatewayv2 import (
 from aws_cdk.aws_route53 import ARecord, RecordTarget, HostedZone, IHostedZone
 from aws_cdk.aws_route53_targets import ApiGatewayv2DomainProperties
 
+from .reference_solver import NameSolver
+
 
 class CognitoRef:
     def __init__(
@@ -55,6 +57,7 @@ class ApiGatewayCreator:
         api_description: str | None,
     ) -> None:
         self.scope = scope
+        self.solver = NameSolver(scope, api_name)
 
         self.api = CfnApi(
             self.scope,
@@ -107,7 +110,7 @@ class ApiGatewayCreator:
     ) -> ApiGatewayCreator:
 
         authorizer_dict = {}
-        for lambda_name, route_spec in lambda_integration_spec.items():
+        for route_spec in lambda_integration_spec.values():
             if "cognito_auth" in route_spec:
                 assert cognito is not None
                 auth_spec = route_spec["cognito_auth"]
@@ -123,9 +126,12 @@ class ApiGatewayCreator:
                         jwt_configuration=cognito.get_jwt_configuration(auth_spec),
                     )
 
-        for lambda_name, route_spec in lambda_integration_spec.items():
+        for lambda_key, route_spec in lambda_integration_spec.items():
+
             self._create_lambda_integration(
-                lambda_name,
+                self.solver.get_lambda_name(
+                    lambda_key, "${stageVariables." + self.STAGE_VARIABLE_BRANCH + "}"
+                ),  # stage変数を参照して決まるlambda名
                 route_spec["route"],
                 (
                     authorizer_dict[
@@ -203,19 +209,14 @@ class ApiGatewayCreator:
         route_key_list: list[str],
         authorizer: CfnAuthorizer | None = None,
     ) -> None:
-        integration_func_name = "{}-{}-{}".format(
-            self.api.name,
-            "${stageVariables." + self.STAGE_VARIABLE_BRANCH + "}",
-            lambda_name,
-        )
 
         integration = CfnIntegration(
             self.scope,
-            integration_func_name,
+            f"{lambda_name}-integration",
             api_id=self.api.ref,
             integration_type="AWS_PROXY",
             integration_uri="arn:aws:lambda:{}:{}:function:{}".format(
-                self.scope.region, self.scope.account, integration_func_name
+                self.scope.region, self.scope.account, lambda_name
             ),
             integration_method="GET",
             payload_format_version="2.0",
@@ -223,7 +224,7 @@ class ApiGatewayCreator:
         for route_key in route_key_list:
             CfnRoute(
                 self.scope,
-                "{}:{}".format(integration_func_name, route_key),
+                "{}:{}".format(lambda_name, route_key),
                 api_id=self.api.ref,
                 target="integrations/" + integration.ref,
                 route_key=route_key,
