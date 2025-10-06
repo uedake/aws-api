@@ -9,10 +9,10 @@ from src_cdk.web_system_stack import WebSystemStack
 def read_spec(spec_path: str, env: dict):
     """
     AWS上のリソースを構築する定義ファイルを読み込みます
-    jsonファイル中の下記は文字列置換されます
+    spec定義ファイル中の下記は文字列置換されます
     - {$account}: AWSアカウント名で置換します
     - {$region}: AWSリージョン名で置換します
-    - {$api_name}: jsonファイル中で定義するapi_nameで置換します
+    - {$service_name}: spec定義ファイルで定義するservice_nameで置換します
     """
 
     with open(spec_path) as f:
@@ -20,7 +20,7 @@ def read_spec(spec_path: str, env: dict):
         raw_api_spec: str = json.loads(text)
 
         replaced_text = (
-            text.replace("{$api_name}", raw_api_spec["api_name"])
+            text.replace("{$service_name}", raw_api_spec["service_name"])
             .replace("{$account}", env["account"])
             .replace("{$region}", env["region"])
         )

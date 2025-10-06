@@ -1,9 +1,19 @@
+import os
+
 from aws_cdk import Stack
 from aws_cdk.aws_amplify import CfnApp, CfnBranch, CfnDomain
 from aws_cdk.aws_sns import Topic
 from aws_cdk.aws_events import Rule, EventPattern
 from aws_cdk.aws_events_targets import SnsTopic
 from aws_cdk.aws_cognito import UserPool, UserPoolClient, OAuthSettings, OAuthFlows
+
+from .iam_creator import IAMCreator
+from aws_cdk.aws_cognito import (
+    CfnIdentityPool,
+    CfnIdentityPoolRoleAttachment,
+    CfnManagedLoginBranding
+)
+from aws_cdk.aws_iam import Role
 
 
 class AmplifyCreator:
@@ -79,6 +89,14 @@ class AmplifyCreator:
                 logout_urls=callback_urls,
             ),
         )
+        CfnManagedLoginBranding(
+            self.scope,
+            f"{self.app.name}-brand",
+            user_pool_id=user_pool.user_pool_id,
+            client_id=user_pool_client.user_pool_client_id,
+            use_cognito_provided_values=True,
+        )
+
         return user_pool_client
 
     def create_event_bridge(
@@ -113,3 +131,36 @@ class AmplifyCreator:
         #     )
         # topic.add_to_resource_policy(policy)
         return topic
+
+    def create_cognito_idpool(
+        self,
+        policy_json_list: list[str],
+        service_name: str,
+        env: dict[str, str],
+    ):
+        for branch_name in self.branch_dict:
+            identity_pool_name = f"{self.app.name}-{branch_name}-pool"
+            identity_pool = CfnIdentityPool(
+                self.scope,
+                identity_pool_name,
+                allow_unauthenticated_identities=False,
+                identity_pool_name=identity_pool_name,
+            )
+
+            role: Role = IAMCreator(
+                self.scope,
+                service_name,
+                env,
+            ).cretae_role_for_identity_pool(
+                f"{self.app.name}-{branch_name}-authenticated-role",
+                identity_pool,
+                policy_json_list,
+                branch_name,
+            )
+
+            CfnIdentityPoolRoleAttachment(
+                self.scope,
+                f"{self.app.name}-{branch_name}-role-attach",
+                identity_pool_id=identity_pool.ref,
+                roles={"authenticated": role.role_arn},
+            )

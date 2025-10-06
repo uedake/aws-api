@@ -208,5 +208,5 @@ cdk deploy --context spec=<specへのパス>
 例：sample-apiをデプロイする場合
 ```
 cd cdk
-cdk deploy --context spec=spec\sample-api\spec.json
+cdk deploy --context spec=spec\sample-api\api_spec.json
 ```

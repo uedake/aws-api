@@ -1,0 +1,36 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "AllowIoTConnect",
+      "Effect": "Allow",
+      "Action": [
+        "iot:Connect"
+      ],
+      "Resource": [
+        "arn:aws:iot:{$region}:{$account}:client/${cognito-identity.amazonaws.com:username}-*"
+      ]
+    },
+    {
+      "Sid": "AllowPublishReceive",
+      "Effect": "Allow",
+      "Action": [
+        "iot:Publish",
+        "iot:Receive"
+      ],
+      "Resource": [
+        "arn:aws:iot:{$region}:{$account}:topic/{$service}/{$branch}/*"
+      ]
+    },
+    {
+      "Sid": "AllowSubscribe",
+      "Effect": "Allow",
+      "Action": [
+        "iot:Subscribe"
+      ],
+      "Resource": [
+        "arn:aws:iot:{$region}:{$account}:topicfilter/{$service}/{$branch}/*"
+      ]
+    }
+  ]
+}

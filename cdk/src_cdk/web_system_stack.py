@@ -33,6 +33,7 @@ class WebSystemCreator:
     def __init__(
         self,
         stack: Stack,
+        service_name: str,
         api_name: str,
         branch_spec_dict: dict[str, dict],
         lambda_handler: str,
@@ -45,6 +46,7 @@ class WebSystemCreator:
         repository_token: str | None = None,
     ):
         self.stack = stack
+        self.service_name = service_name
         self.api_name = api_name
         self.branch_spec_dict = branch_spec_dict
         self.lambda_handler = lambda_handler
@@ -152,6 +154,7 @@ class WebSystemCreator:
                 raise Exception("need repository_root of github for amplify")
             client_dict = self._create_app(
                 amplify_spec_dict,
+                self.service_name,
             )
             self.ref.set_cognito_client(client_dict)
 
@@ -189,8 +192,7 @@ class WebSystemCreator:
                 Tags.of(self.stack).add(key, val)
 
     def _create_app(
-        self,
-        amplify_spec_dict: dict[str, dict],
+        self, amplify_spec_dict: dict[str, dict], service_name: str | None = None
     ) -> dict[str, UserPoolClient]:
         client_dict: dict[str, UserPoolClient] = {}
         for app_name, app_spec in amplify_spec_dict.items():
@@ -220,6 +222,15 @@ class WebSystemCreator:
             if "deploy_event_sns" in app_spec:
                 topic = self.ref.get_topic(app_spec["deploy_event_sns"])
                 amplify.create_event_bridge(topic.topic_arn)
+            if "policy" in app_spec:
+                amplify.create_cognito_idpool(
+                    [self.resolve_path(path) for path in app_spec["policy"]],
+                    service_name,
+                    env={
+                        "account": os.environ["CDK_DEFAULT_ACCOUNT"],
+                        "region": os.environ["CDK_DEFAULT_REGION"],
+                    },
+                )
         return client_dict
 
     def _create_s3(
@@ -426,6 +437,7 @@ class WebSystemStack(Stack):
 
         websystem = WebSystemCreator(
             self,
+            spec_dict["service_name"],
             spec_dict["api_name"],
             spec_dict["branch"],
             spec_dict["lambda_handler"],

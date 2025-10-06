@@ -6,6 +6,7 @@
     "additionalProperties": false,
     "required": [
         "stack",
+        "service_name",
         "api_name",
         "branch",
         "lambda_func"
@@ -15,11 +16,15 @@
             "type": "string",
             "pattern": "^[A-Za-z0-9\\-]+$"
         },
+        "service_name": {
+            "type": "string",
+            "pattern": "^[a-z0-9\\-]+$"
+        },
         "api_name": {
             "type": "string",
             "pattern": "^[a-z0-9\\-]+$"
         },
-        "lambda_handler":{
+        "lambda_handler": {
             "type": "string",
             "pattern": "^[a-z0-9_\\.]+$"
         },
@@ -318,15 +323,21 @@
                     "type": "string",
                     "pattern": "^[a-z0-9\\-\\.]+$"
                 },
-                "cognito_auth": {
-                    "type": "string"
-                },
                 "deploy_event_sns": {
                     "type": "string",
                     "pattern": "^[A-Za-z0-9_\\-]+$"
                 },
                 "description": {
                     "type": "string"
+                },
+                "cognito_auth": {
+                    "type": "string"
+                },
+                "policy": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },

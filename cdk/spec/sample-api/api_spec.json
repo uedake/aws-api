@@ -1,5 +1,6 @@
 {
     "stack": "sample-api-stack",
+    "service_name": "sample-service",
     "api_name": "sample-api",
     "lambda_handler": "api.lambda_function.lambda_handler",
     "repository_root": "https://github.com/uedake",
@@ -10,25 +11,25 @@
     "branch": {
         "main": {
             "apigw_stage": "$default",
-            "bucket": "{$api_name}-{$account}",
+            "bucket": "{$service_name}-{$account}",
             "amplify_type": "BETA"
         },
         "dev": {
             "apigw_stage": "dev",
-            "bucket": "{$api_name}-{$account}",
+            "bucket": "{$service_name}-{$account}",
             "amplify_type": "DEVELOPMENT"
         },
         "test": {
             "apigw_stage": "test",
-            "bucket": "{$api_name}-test-{$account}",
+            "bucket": "{$service_name}-test-{$account}",
             "amplify_type": "EXPERIMENTAL"
         }
     },
     "s3": {
-        "{$api_name}-{$account}": {
+        "{$service_name}-{$account}": {
             "public_read": false
         },
-        "{$api_name}-test-{$account}": {
+        "{$service_name}-test-{$account}": {
             "public_read": false
         }
     },
@@ -127,7 +128,11 @@
             "description": "サンプルアプリ",
             "cognito_auth": "developer",
             "domain": "wal-test.com",
-            "deploy_event_sns": "amplify_state_change"
+            "deploy_event_sns": "amplify_state_change",
+            "policy": [
+                "policy/cognito_default.json",
+                "policy/iotcore_readwrite.json"
+            ]
         }
     },
     "ref": {
