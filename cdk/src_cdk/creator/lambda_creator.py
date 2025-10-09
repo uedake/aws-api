@@ -1,22 +1,24 @@
 from __future__ import annotations
 
 from aws_cdk import Duration, Size, Stack
-from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal
+from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal,Policy,Role
 from aws_cdk.aws_lambda import Code, FileSystem, Function, Runtime
 from aws_cdk.aws_eventschemas import CfnSchema
 from aws_cdk.aws_lambda_event_sources import SqsEventSource, SnsEventSource
 from aws_cdk.aws_sqs import Queue
 from aws_cdk.aws_sns import Topic
 
+
 class LambdaCreator:
     def __init__(
         self,
         scope: Stack,
         lambda_name: str,
-        runtime: Runtime | None = None,
-        code: Code | None = None,
-        handler: str|None = None,
         *,
+        runtime: Runtime | None = None,
+        managed_policy_list: list[str] | None = None,
+        code: Code | None = None,
+        handler: str | None = None,
         timeout: int | None = None,
         memory_size: int | None = None,
         storage_size: int | None = None,
@@ -32,6 +34,7 @@ class LambdaCreator:
         self.func = self._create(
             lambda_name,
             runtime if runtime is not None else Runtime.PYTHON_3_12,
+            managed_policy_list if managed_policy_list is not None else [],
             code if code is not None else Code.from_asset("initial_lambda"),
             handler=handler,
             timeout=timeout,
@@ -51,9 +54,10 @@ class LambdaCreator:
         self,
         lambda_name: str,
         runtime: Runtime,
+        managed_policy_list: list[str],
         code: Code,
         *,
-        handler: str|None=None,
+        handler: str | None = None,
         timeout: int | None = None,
         memory_size: int | None = None,
         storage_size: int | None = None,
@@ -78,14 +82,7 @@ class LambdaCreator:
                 Size.mebibytes(storage_size) if storage_size else None
             ),
         )
-        for name in [
-            "service-role/AWSBatchServiceEventTargetRole",
-            "service-role/AWSLambdaRole",
-            # "service-role/AWSLambdaSQSQueueExecutionRole", #SQSから呼ばれるのに必要だが、FullAccessがあれば不要
-            "AmazonSQSFullAccess",  # 他のSQSを呼ぶのに必要
-            "AmazonS3FullAccess",
-            "AmazonElasticFileSystemClientReadWriteAccess",
-        ]:
+        for name in managed_policy_list:
             func.role.add_managed_policy(
                 ManagedPolicy.from_aws_managed_policy_name(name)
             )

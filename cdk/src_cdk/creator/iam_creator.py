@@ -4,7 +4,13 @@ import json
 import os
 
 from aws_cdk import Stack
-from aws_cdk.aws_iam import Policy, PolicyDocument, Role, FederatedPrincipal
+from aws_cdk.aws_iam import (
+    Policy,
+    PolicyDocument,
+    Role,
+    FederatedPrincipal,
+    ManagedPolicy,
+)
 from aws_cdk.aws_cognito import CfnIdentityPool
 
 
@@ -26,7 +32,8 @@ class IAMCreator:
         self,
         role_name: str,
         identity_pool: CfnIdentityPool,
-        policy_json_list: list[str],
+        inline_policy_json_path_list: list[str],
+        managed_policy_list: list[str],
         branch_name: str,
     ) -> Role:
         role = Role(
@@ -51,8 +58,12 @@ class IAMCreator:
                         path, self.service_name, branch_name, self.env
                     )
                 )
-                for path in policy_json_list
+                for path in inline_policy_json_path_list
             },
+            managed_policies=[
+                ManagedPolicy.from_aws_managed_policy_name(name)
+                for name in managed_policy_list
+            ],
         )
         self.role_dict[role_name] = role
         return role

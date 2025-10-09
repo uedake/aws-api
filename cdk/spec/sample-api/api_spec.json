@@ -8,6 +8,13 @@
         "tag_key": "tag_val"
     },
     "default_runtime": "PYTHON_3_13",
+    "lambda_common_managed_policy": [
+        "service-role/AWSBatchServiceEventTargetRole",
+        "service-role/AWSLambdaRole",
+        "AmazonSQSFullAccess",
+        "AmazonS3FullAccess",
+        "AmazonElasticFileSystemClientReadWriteAccess"
+    ],
     "branch": {
         "main": {
             "apigw_stage": "$default",
@@ -35,11 +42,12 @@
     },
     "apigw": {
         "description": "api for calling sample lambdas",
+        "domain": "wal-test.com",
         "lambda_integration": {
             "pipeline_entry": {
                 "route": [
-                    "ANY /pipeline_entry/{path1}",
-                    "ANY /pipeline_entry"
+                    "GET /pipeline_entry/{path1}",
+                    "GET /pipeline_entry"
                 ]
             },
             "s3_access": {
@@ -51,18 +59,27 @@
                     "app": "aws-sample-app"
                 },
                 "route": [
-                    "ANY /echo_with_auth/{path1}",
-                    "ANY /echo_with_auth"
+                    "GET /echo_with_auth/{path1}",
+                    "GET /echo_with_auth",
+                    "POST /echo_with_auth/{path1}",
+                    "POST /echo_with_auth"
                 ]
             },
             "echo": {
                 "route": [
-                    "ANY /echo/{path1}",
-                    "ANY /echo"
+                    "GET /echo/{path1}",
+                    "GET /echo",
+                    "POST /echo/{path1}",
+                    "POST /echo"
                 ]
             },
             "numpy": {
                 "fastapi_app": "app"
+            },
+            "permit_iotcore_access": {
+                "route": [
+                    "GET /permit_iotcore_access"
+                ]
             }
         }
     },
@@ -113,6 +130,13 @@
                 "pandas_py313",
                 "fastapi_py313"
             ]
+        },
+        "permit_iotcore_access": {
+            "code": "src_lambda/permit_iotcore_access/src",
+            "timeout": 10,
+            "managed_policy": [
+                "AWSIoTFullAccess"
+            ]
         }
     },
     "batch_func": {
@@ -129,9 +153,12 @@
             "cognito_auth": "developer",
             "domain": "wal-test.com",
             "deploy_event_sns": "amplify_state_change",
-            "policy": [
-                "policy/cognito_default.json",
-                "policy/iotcore_readwrite.json"
+            "inline_policy": [
+                "iam_policy/cognito_default.json"
+            ],
+            "managed_policy": [
+                "AWSIoTDataAccess",
+                "AWSIoTConfigAccess"
             ]
         }
     },

@@ -1,5 +1,3 @@
-import os
-
 from aws_cdk import Stack
 from aws_cdk.aws_amplify import CfnApp, CfnBranch, CfnDomain
 from aws_cdk.aws_sns import Topic
@@ -11,7 +9,7 @@ from .iam_creator import IAMCreator
 from aws_cdk.aws_cognito import (
     CfnIdentityPool,
     CfnIdentityPoolRoleAttachment,
-    CfnManagedLoginBranding
+    CfnManagedLoginBranding,
 )
 from aws_cdk.aws_iam import Role
 
@@ -50,7 +48,7 @@ class AmplifyCreator:
                 branch_name=branch_name,
                 stage=stage_dict["stage"],
                 environment_variables=[
-                    {"name": key, "value": val}
+                    {"name": "REACT_APP_" + key, "value": val}
                     for key, val in stage_dict["env"].items()
                 ],
             )
@@ -72,8 +70,7 @@ class AmplifyCreator:
             domain.node.add_dependency(branch)
         self.app = app
 
-    def create_cognito_login_page(self, user_pool_id: str) -> UserPoolClient:
-        user_pool = UserPool.from_user_pool_id(self.scope, "user_pool", user_pool_id)
+    def create_cognito_login_page(self, user_pool: UserPool) -> UserPoolClient:
         callback_urls = ["http://localhost:3000/"] + [
             f"https://{branch}.{self.app.name}.{self.domain_name}/"
             for branch in self.branch_dict.keys()
@@ -122,19 +119,14 @@ class AmplifyCreator:
             ),
             targets=[topic],
         )
-        # policy=PolicyStatement(
-        #     sid="AWSEvents_Allow",
-        #     effect=Effect.ALLOW,
-        #     principals=[ServicePrincipal("events.amazonaws.com")],
-        #     actions=["sns:Publish"],
-        #     resources=[rule.rule_arn]
-        #     )
-        # topic.add_to_resource_policy(policy)
         return topic
 
     def create_cognito_idpool(
         self,
-        policy_json_list: list[str],
+        user_pool: UserPool,
+        client: UserPoolClient,
+        inline_policy_json_path_list: list[str],
+        managed_policy_list:list[str],
         service_name: str,
         env: dict[str, str],
     ):
@@ -145,6 +137,12 @@ class AmplifyCreator:
                 identity_pool_name,
                 allow_unauthenticated_identities=False,
                 identity_pool_name=identity_pool_name,
+                cognito_identity_providers=[
+                    CfnIdentityPool.CognitoIdentityProviderProperty(
+                        client_id=client.user_pool_client_id,
+                        provider_name=user_pool.user_pool_provider_name,
+                    )
+                ],
             )
 
             role: Role = IAMCreator(
@@ -154,7 +152,8 @@ class AmplifyCreator:
             ).cretae_role_for_identity_pool(
                 f"{self.app.name}-{branch_name}-authenticated-role",
                 identity_pool,
-                policy_json_list,
+                inline_policy_json_path_list,
+                managed_policy_list,
                 branch_name,
             )
 

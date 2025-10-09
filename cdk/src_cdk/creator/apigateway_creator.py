@@ -6,11 +6,14 @@ from aws_cdk.aws_apigatewayv2 import (
     CfnRoute,
     CfnIntegration,
     CfnAuthorizer,
-    CfnDomainName,
+    DomainName,
+    EndpointType,
     CfnApiMapping,
 )
-from aws_cdk.aws_route53 import ARecord, RecordTarget, HostedZone, IHostedZone
+from aws_cdk.aws_logs import LogGroup
+from aws_cdk.aws_route53 import ARecord, RecordTarget, HostedZone
 from aws_cdk.aws_route53_targets import ApiGatewayv2DomainProperties
+from aws_cdk.aws_certificatemanager import Certificate, CertificateValidation
 
 from .reference_solver import NameSolver
 
@@ -72,34 +75,47 @@ class ApiGatewayCreator:
             ),
         )
 
-    def add_stages(
-        self,
-        stages_dict: dict | None = None,
-        zone_id: str | None = None,
-        zone_name: str | None = None,
-        certificate_arn: str | None = None,
-    ) -> ApiGatewayCreator:
-
-        domain = (
-            self._create_apigateway_domain(
-                self.api.name,
-                "{}.{}".format(self.api.name, zone_name),
-                HostedZone.from_hosted_zone_attributes(
-                    self.scope,
-                    "hostedZone",
-                    hosted_zone_id=zone_id,
-                    zone_name=zone_name,
-                ),
-                certificate_arn=certificate_arn,
-            )
-            if zone_id is not None and zone_name is not None
-            else None
+    def _create_domain(self, zone_name: str):
+        hosted_zone = HostedZone.from_lookup(
+            self.scope, f"{self.api.name}-Zone", domain_name=zone_name
+        )
+        cert = Certificate(
+            self.scope,
+            f"{self.api.name}-Cert",
+            domain_name=f"{self.api.name}.{zone_name}",
+            validation=CertificateValidation.from_dns(hosted_zone),
+        )
+        domain = DomainName(
+            self.scope,
+            f"{self.api.name}-CustomDomain",
+            domain_name=f"{self.api.name}.{zone_name}",
+            certificate=cert,
+            endpoint_type=EndpointType.REGIONAL,
         )
 
+        ARecord(
+            self.scope,
+            f"{self.api.name}-aliasRecord",
+            zone=hosted_zone,
+            record_name=self.api.name,
+            target=RecordTarget.from_alias(
+                ApiGatewayv2DomainProperties(
+                    domain.regional_domain_name,
+                    domain.regional_hosted_zone_id,
+                )
+            ),
+        )
+
+        return domain
+
+    def add_stages(
+        self, stages_dict: dict | None = None, *, zone_name: str | None = None
+    ) -> ApiGatewayCreator:
+        domain_name = self._create_domain(zone_name) if zone_name is not None else None
         if stages_dict is None:
             stages_dict = {"$default": "master"}
         for stage_name, branch in stages_dict.items():
-            self._create_stage(stage_name, branch, domain)
+            self._create_stage(stage_name, branch, domain_name)
         return self
 
     def add_lambda_integrations(
@@ -143,64 +159,40 @@ class ApiGatewayCreator:
             )
         return self
 
-    def _create_apigateway_domain(
-        self,
-        api_name: str,
-        domain_name: str,
-        zone: IHostedZone,
-        *,
-        certificate_arn: str | None = None,
-    ) -> CfnDomainName:
-        domain = CfnDomainName(
-            self.scope,
-            "{}_domain".format(api_name),
-            domain_name=domain_name,
-            domain_name_configurations=(
-                [
-                    CfnDomainName.DomainNameConfigurationProperty(
-                        certificate_arn=certificate_arn,
-                    )
-                ]
-                if certificate_arn is not None
-                else None
-            ),
-        )
-        _ = ARecord(
-            self.scope,
-            "{}_aliasRecord".format(api_name),
-            zone=zone,
-            record_name=domain_name,
-            target=RecordTarget.from_alias(
-                ApiGatewayv2DomainProperties(
-                    domain.attr_regional_domain_name,
-                    domain.attr_regional_hosted_zone_id,
-                )
-            ),
-        )
-        return domain
-
     def _create_stage(
-        self, stage_name: str, branch: str, domain: CfnDomainName | None = None
+        self, stage_name: str, branch: str, domain: DomainName | None = None
     ) -> None:
+        log_group = LogGroup(
+            self.scope,
+            f"{self.api.name}_{stage_name}_log",
+            log_group_name=f"{self.api.name}-{branch}"
+        )
+
+        format = "$context.identity.sourceIp,$context.requestTime,$context.httpMethod,$context.routeKey,$context.protocol,$context.status,$context.responseLength,$context.requestId"
         stage = CfnStage(
             self.scope,
-            "{}_{}".format(self.api.name, stage_name),
+            f"{self.api.name}_{stage_name}",
             api_id=self.api.ref,
             stage_name=stage_name,
             auto_deploy=True,
             stage_variables={self.STAGE_VARIABLE_BRANCH: branch},
+            access_log_settings=CfnStage.AccessLogSettingsProperty(
+                destination_arn=log_group.log_group_arn,
+                format=format,
+            ),
         )
+        stage.add_dependency(log_group.node.default_child)
 
         if domain is not None:
             mapping = CfnApiMapping(
                 self.scope,
-                "{}_{}_mapping".format(self.api.name, stage.stage_name),
+                "{}_{}_mapping".format(self.api.name, stage_name),
                 api_id=self.api.ref,
-                domain_name=domain.domain_name,
-                stage=stage.stage_name,
-                api_mapping_key=branch,
+                domain_name=domain.name,
+                stage=stage_name,
+                api_mapping_key=stage_name if stage_name != "$default" else None,
             )
-            mapping.add_dependency(domain)
+            mapping.add_dependency(domain.node.default_child)
             mapping.add_dependency(stage)
 
     def _create_lambda_integration(

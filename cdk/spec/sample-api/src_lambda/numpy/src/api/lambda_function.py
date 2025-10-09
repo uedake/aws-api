@@ -1,3 +1,4 @@
+import os
 import traceback
 
 from fastapi import FastAPI
@@ -74,4 +75,9 @@ def calc_average(
             raise ex
 
 
-lambda_handler = Mangum(app)  # Lambda 用ハンドラー
+ENV_BRANCH_KEY = "Branch"
+branch = os.environ.get(ENV_BRANCH_KEY)
+if branch is None or branch == "main":
+    lambda_handler = Mangum(app)
+else:
+    lambda_handler = Mangum(app, api_gateway_base_path=f"/{branch}")

@@ -28,6 +28,13 @@
             "type": "string",
             "pattern": "^[a-z0-9_\\.]+$"
         },
+        "lambda_common_managed_policy": {
+            "type": "array",
+            "items": {
+                "type": "string",
+                "description": "managed policy name"
+            }
+        },
         "branch": {
             "$ref": "#/$defs/branch_dict"
         },
@@ -137,6 +144,10 @@
             "properties": {
                 "description": {
                     "type": "string"
+                },
+                "domain":{
+                    "type": "string",
+                    "pattern": "^[a-z0-9\\-\\.]+$"
                 },
                 "lambda_integration": {
                     "$ref": "#/$defs/lambda_integration_dict"
@@ -272,6 +283,13 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "managed_policy": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "description": "managed policy name"
+                    }
                 }
             }
         },
@@ -333,7 +351,13 @@
                 "cognito_auth": {
                     "type": "string"
                 },
-                "policy": {
+                "inline_policy": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "managed_policy": {
                     "type": "array",
                     "items": {
                         "type": "string"

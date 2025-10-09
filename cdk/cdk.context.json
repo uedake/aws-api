@@ -1,5 +1,9 @@
 {
   "acknowledged-issue-numbers": [
     34892
-  ]
+  ],
+  "hosted-zone:account=821721610090:domainName=wal-test.com:region=ap-northeast-1": {
+    "Id": "/hostedzone/Z0206893265B2J2O3AYFW",
+    "Name": "wal-test.com."
+  }
 }

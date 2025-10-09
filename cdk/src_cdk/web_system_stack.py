@@ -5,7 +5,7 @@ from aws_cdk import Stack, Tags
 from aws_cdk.aws_lambda import Code, Function, Runtime
 from aws_cdk.aws_sns import Topic
 from aws_cdk.aws_apigatewayv2 import CfnApi
-from aws_cdk.aws_cognito import UserPoolClient
+from aws_cdk.aws_cognito import UserPool, UserPoolClient
 
 from constructs import Construct
 from jsonschema import Draft202012Validator
@@ -28,6 +28,7 @@ class WebSystemCreator:
     ENV_BRANCH_KEY = "Branch"
     ENV_URL_KEY = "NotificationUrl"
     ENV_API_KEY = "API"
+    ENV_SERVICE_KEY = "Service"
     ENV_NEXT_SQS_KEY = "NextSQS"
 
     def __init__(
@@ -37,6 +38,7 @@ class WebSystemCreator:
         api_name: str,
         branch_spec_dict: dict[str, dict],
         lambda_handler: str,
+        common_lambda_policy: list[str],
         *,
         ref_spec: dict[str, dict] | None = None,
         tags: dict[str, str] | None = None,
@@ -50,6 +52,7 @@ class WebSystemCreator:
         self.api_name = api_name
         self.branch_spec_dict = branch_spec_dict
         self.lambda_handler = lambda_handler
+        self.common_lambda_policy = common_lambda_policy
 
         self.ref = ReferenceSolver(self.stack, ref_spec)
         self.tags = tags
@@ -77,6 +80,7 @@ class WebSystemCreator:
     ):
         env_dict = {}
         env_dict[self.ENV_API_KEY] = self.api_name
+        env_dict[self.ENV_SERVICE_KEY] = self.service_name
         if branch_name is not None:
             branch_spec = self.branch_spec_dict[branch_name]
             env_dict[self.ENV_BRANCH_KEY] = branch_name
@@ -175,6 +179,7 @@ class WebSystemCreator:
             # create lambdas (for each branch and each lambda_func spec)
             lambda_func_dict = self._create_lambda(
                 lambda_spec_dict,
+                common_managed_policy_list=self.common_lambda_policy,
                 branch_name=branch_name,
                 apigw_spec=apigw_spec,
             )
@@ -216,21 +221,28 @@ class WebSystemCreator:
                 app_spec["domain"],
                 description=app_spec.get("description"),
             )
+
             if user_pool_id is not None:
-                client = amplify.create_cognito_login_page(user_pool_id)
+                user_pool = UserPool.from_user_pool_id(
+                    self.stack, "user_pool", user_pool_id
+                )
+                client = amplify.create_cognito_login_page(user_pool)
                 client_dict[app_name] = client
+                if "inline_policy" in app_spec or "managed_policy" in app_spec:
+                    amplify.create_cognito_idpool(
+                        user_pool,
+                        client,
+                        [self.resolve_path(path) for path in app_spec.get("inline_policy",[])],
+                        app_spec.get("managed_policy",[]),
+                        service_name,
+                        env={
+                            "account": os.environ["CDK_DEFAULT_ACCOUNT"],
+                            "region": os.environ["CDK_DEFAULT_REGION"],
+                        },
+                    )
             if "deploy_event_sns" in app_spec:
                 topic = self.ref.get_topic(app_spec["deploy_event_sns"])
                 amplify.create_event_bridge(topic.topic_arn)
-            if "policy" in app_spec:
-                amplify.create_cognito_idpool(
-                    [self.resolve_path(path) for path in app_spec["policy"]],
-                    service_name,
-                    env={
-                        "account": os.environ["CDK_DEFAULT_ACCOUNT"],
-                        "region": os.environ["CDK_DEFAULT_REGION"],
-                    },
-                )
         return client_dict
 
     def _create_s3(
@@ -278,7 +290,8 @@ class WebSystemCreator:
                 {
                     branch_spec["apigw_stage"]: branch_name
                     for branch_name, branch_spec in self.branch_spec_dict.items()
-                }
+                },
+                zone_name=apigw_spec["domain"],
             )
             .add_lambda_integrations(
                 lambda_integration_spec,
@@ -318,6 +331,7 @@ class WebSystemCreator:
         self,
         lambda_spec_dict: dict[str, dict],
         *,
+        common_managed_policy_list: list[str] | None = None,
         branch_name: str | None = None,
         apigw_spec: dict | None = None,
         sender_topic: Topic | None = None,
@@ -340,6 +354,8 @@ class WebSystemCreator:
                     lambda_spec.get("runtime", ""),
                     getattr(Runtime, self.default_runtime, None),
                 ),
+                managed_policy_list=lambda_spec.get("managed_policy", [])
+                + (common_managed_policy_list or []),
                 code=(
                     Code.from_asset(self.resolve_path(lambda_spec["code"]))
                     if "code" in lambda_spec
@@ -441,6 +457,7 @@ class WebSystemStack(Stack):
             spec_dict["api_name"],
             spec_dict["branch"],
             spec_dict["lambda_handler"],
+            spec_dict.get("common_lambda_policy", []),
             ref_spec=spec_dict.get("ref"),
             tags=spec_dict.get("tags"),
             root_path=root_path,
