@@ -219,7 +219,7 @@ class WebSystemCreator:
                 self.repository_root,
                 self.repository_token,
                 app_spec["domain"],
-                description=app_spec.get("description"),
+                app_description=app_spec.get("app_description"),
             )
 
             if user_pool_id is not None:
@@ -232,8 +232,11 @@ class WebSystemCreator:
                     amplify.create_cognito_idpool(
                         user_pool,
                         client,
-                        [self.resolve_path(path) for path in app_spec.get("inline_policy",[])],
-                        app_spec.get("managed_policy",[]),
+                        [
+                            self.resolve_path(path)
+                            for path in app_spec.get("inline_policy", [])
+                        ],
+                        app_spec.get("managed_policy", []),
                         service_name,
                         env={
                             "account": os.environ["CDK_DEFAULT_ACCOUNT"],
@@ -284,7 +287,7 @@ class WebSystemCreator:
             ApiGatewayCreator(
                 self.stack,
                 self.api_name,
-                apigw_spec.get("description"),
+                apigw_spec.get("api_description"),
             )
             .add_stages(
                 {
@@ -309,12 +312,12 @@ class WebSystemCreator:
     ) -> dict[str, Topic]:
         topic_dict = {}
         for topic_key, sns_spec in sns_spec_dict.items():
-            sns = SNSCreator(
+            sns_creator = SNSCreator(
                 self.stack,
                 self.name.get_topic_name(topic_key),
-                sns_spec.get("description"),
+                sns_spec.get("topic_description"),
             ).called_by_event_bridge()
-            topic_dict[topic_key] = sns.topic
+            topic_dict[topic_key] = sns_creator.topic
 
             if "lambda_func" in sns_spec:
                 lambda_spec_dict = sns_spec["lambda_func"]
@@ -322,7 +325,7 @@ class WebSystemCreator:
                 # create lambdas (for each lambda_func spec)
                 self._create_lambda(
                     lambda_spec_dict,
-                    sender_topic=sns.topic,
+                    sender_topic=sns_creator.topic,
                 )
 
         return topic_dict
@@ -354,6 +357,10 @@ class WebSystemCreator:
                     lambda_spec.get("runtime", ""),
                     getattr(Runtime, self.default_runtime, None),
                 ),
+                inline_policy_json_path_list=[
+                    self.resolve_path(path)
+                    for path in lambda_spec.get("inline_policy", [])
+                ],
                 managed_policy_list=lambda_spec.get("managed_policy", [])
                 + (common_managed_policy_list or []),
                 code=(

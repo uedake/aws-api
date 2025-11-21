@@ -72,7 +72,6 @@ def create_and_attach_iot_role(
 
 
 def lambda_handler(event, context):
-    print("sample lambda function called!")
     query_param = event.get("queryStringParameters")
     print(query_param)
     script_dir = os.path.dirname(os.path.abspath(__file__))

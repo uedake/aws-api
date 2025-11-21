@@ -10,11 +10,11 @@ class SNSCreator:
         self,
         scope: Stack,
         topic_name: str,
-        description: str,
+        topic_description: str,
     ) -> None:
         self.scope = scope
         self.topic = Topic(
-            self.scope, topic_name, topic_name=topic_name, display_name=description
+            self.scope, topic_name, topic_name=topic_name, display_name=topic_description
         )
 
     def called_by_event_bridge(self) -> SNSCreator:

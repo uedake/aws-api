@@ -1,7 +1,8 @@
 from __future__ import annotations
+import json
 
 from aws_cdk import Duration, Size, Stack
-from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal,Policy,Role
+from aws_cdk.aws_iam import ManagedPolicy, ServicePrincipal, PolicyDocument, Policy
 from aws_cdk.aws_lambda import Code, FileSystem, Function, Runtime
 from aws_cdk.aws_eventschemas import CfnSchema
 from aws_cdk.aws_lambda_event_sources import SqsEventSource, SnsEventSource
@@ -16,6 +17,7 @@ class LambdaCreator:
         lambda_name: str,
         *,
         runtime: Runtime | None = None,
+        inline_policy_json_path_list: list[str] | None = None,
         managed_policy_list: list[str] | None = None,
         code: Code | None = None,
         handler: str | None = None,
@@ -34,6 +36,11 @@ class LambdaCreator:
         self.func = self._create(
             lambda_name,
             runtime if runtime is not None else Runtime.PYTHON_3_12,
+            (
+                inline_policy_json_path_list
+                if inline_policy_json_path_list is not None
+                else []
+            ),
             managed_policy_list if managed_policy_list is not None else [],
             code if code is not None else Code.from_asset("initial_lambda"),
             handler=handler,
@@ -54,6 +61,7 @@ class LambdaCreator:
         self,
         lambda_name: str,
         runtime: Runtime,
+        inline_policy_json_path_list: list[str],
         managed_policy_list: list[str],
         code: Code,
         *,
@@ -85,6 +93,17 @@ class LambdaCreator:
         for name in managed_policy_list:
             func.role.add_managed_policy(
                 ManagedPolicy.from_aws_managed_policy_name(name)
+            )
+
+        for i, path in enumerate(inline_policy_json_path_list):
+            with open(path) as f:
+                obj = json.load(f)
+            func.role.attach_inline_policy(
+                Policy(
+                    self.scope,
+                    f"{lambda_name}-policy-{i}",
+                    document=PolicyDocument.from_json(obj),
+                )
             )
 
         if test_schema_path is not None:

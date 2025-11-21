@@ -24,7 +24,7 @@ class AmplifyCreator:
         repository_token: str,
         domain_name: str,
         *,
-        description: str | None = None,
+        app_description: str | None = None,
     ) -> None:
         self.scope = scope
         self.branch_dict = branch_dict
@@ -36,7 +36,7 @@ class AmplifyCreator:
             name=app_name,
             access_token=repository_token,
             repository=f"{repository_root}/{app_name}",
-            description=description,
+            description=app_description,
         )
         sub_domain_list = []
         branch_list = []

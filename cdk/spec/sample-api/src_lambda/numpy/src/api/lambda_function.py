@@ -32,7 +32,7 @@ class Error(BaseModel):
 
 @app.get("/numpy", response_model=Response | Error)
 @app.get("/numpy/{path_val}", response_model=Response | Error)
-def calc_average(val: float | None = None, path_val: float | None = None):
+def calc_average_get(val: float | None = None, path_val: float | None = None):
     try:
         vec = np.array([v for v in [val, path_val] if v is not None])
         avg = float(np.average(vec)) if len(vec) > 0 else None
@@ -49,13 +49,13 @@ def calc_average(val: float | None = None, path_val: float | None = None):
 
 @app.post("/numpy", response_model=Response | Error)
 @app.post("/numpy/{path_val}", response_model=Response | Error)
-def calc_average(
+def calc_average_post(
     val: float | None = None,
-    req: Request | None = None,
+    body: Request | None = None,
     path_val: float | None = None,
 ):
     try:
-        body_val = req.val if req is not None else None
+        body_val = body.val if body is not None else None
 
         vec = np.array([v for v in [val, body_val, path_val] if v is not None])
         avg = float(np.average(vec)) if len(vec) > 0 else None

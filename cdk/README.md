@@ -169,9 +169,14 @@ pip install -r .\requirements.txt
 ## 使い方
 
 
-1. AWSにログインした状態にする
+1. スクリプトがAWSにアクセスできる状態にする
 
-- シングルサインオンを用いている場合
+- secretアクセスキーを用いる場合
+```
+aws configure
+```
+
+- シングルサインオンを用いる場合
 ```
 aws sso login
 ```

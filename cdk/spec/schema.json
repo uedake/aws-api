@@ -142,7 +142,7 @@
                 "lambda_integration"
             ],
             "properties": {
-                "description": {
+                "api_description": {
                     "type": "string"
                 },
                 "domain":{
@@ -240,7 +240,7 @@
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "description": {
+                "topic_description": {
                     "type": "string"
                 },
                 "lambda_func": {
@@ -284,11 +284,18 @@
                         "type": "string"
                     }
                 },
+                "inline_policy": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "description": "policy json file path to be attached to execution role for this lambda."
+                    }
+                },
                 "managed_policy": {
                     "type": "array",
                     "items": {
                         "type": "string",
-                        "description": "managed policy name"
+                        "description": "managed policy name to be attached to execution role for this lambda."
                     }
                 }
             }
@@ -345,7 +352,7 @@
                     "type": "string",
                     "pattern": "^[A-Za-z0-9_\\-]+$"
                 },
-                "description": {
+                "app_description": {
                     "type": "string"
                 },
                 "cognito_auth": {
@@ -354,13 +361,15 @@
                 "inline_policy": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "policy json file path to be attached to idpool for this app."
                     }
                 },
                 "managed_policy": {
                     "type": "array",
                     "items": {
-                        "type": "string"
+                        "type": "string",
+                        "description": "policy name to be attached to idpool for this app."
                     }
                 }
             }
