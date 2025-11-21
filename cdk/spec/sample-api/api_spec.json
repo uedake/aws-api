@@ -172,6 +172,15 @@
             "managed_policy": [
                 "AWSIoTDataAccess"
             ]
+        },
+        "webrtc-test-client": {
+            "app_description": "webrtcのテスト用アプリ",
+            "cognito_auth": "developer",
+            "domain": "wal-test.com",
+            "deploy_event_sns": "amplify_state_change",
+            "inline_policy": [
+                "iam_policy/cognito_default.json"
+            ]
         }
     },
     "ref": {

@@ -102,7 +102,7 @@ class AmplifyCreator:
     ) -> SnsTopic:
 
         topic = SnsTopic(
-            Topic.from_topic_arn(self.scope, "amplify-notification", topic_arn)
+            Topic.from_topic_arn(self.scope, f"{self.app.name}-notification", topic_arn)
         )
         _ = Rule(
             self.scope,

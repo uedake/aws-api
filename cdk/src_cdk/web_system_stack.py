@@ -197,12 +197,14 @@ class WebSystemCreator:
                 Tags.of(self.stack).add(key, val)
 
     def _create_app(
-        self, amplify_spec_dict: dict[str, dict], service_name: str | None = None
+        self,
+        amplify_spec_dict: dict[str, dict],
+        service_name: str | None = None,
     ) -> dict[str, UserPoolClient]:
         client_dict: dict[str, UserPoolClient] = {}
         for app_name, app_spec in amplify_spec_dict.items():
-            user_pool_id = (
-                self.ref.cognito[app_spec["cognito_auth"]]["user_pool_id"]
+            user_pool = (
+                self.ref.cognito[app_spec["cognito_auth"]]["user_pool"]
                 if "cognito_auth" in app_spec
                 else None
             )
@@ -222,10 +224,7 @@ class WebSystemCreator:
                 app_description=app_spec.get("app_description"),
             )
 
-            if user_pool_id is not None:
-                user_pool = UserPool.from_user_pool_id(
-                    self.stack, "user_pool", user_pool_id
-                )
+            if user_pool is not None:
                 client = amplify.create_cognito_login_page(user_pool)
                 client_dict[app_name] = client
                 if "inline_policy" in app_spec or "managed_policy" in app_spec:

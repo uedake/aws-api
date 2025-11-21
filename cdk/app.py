@@ -15,7 +15,7 @@ def read_spec(spec_path: str, env: dict):
     - {$service_name}: spec定義ファイルで定義するservice_nameで置換します
     """
 
-    with open(spec_path) as f:
+    with open(spec_path,"r", encoding="utf-8") as f:
         text = f.read()
         raw_api_spec: str = json.loads(text)
 

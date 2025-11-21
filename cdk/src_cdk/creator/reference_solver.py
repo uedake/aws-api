@@ -2,7 +2,7 @@ from aws_cdk import Stack
 from aws_cdk.aws_lambda import LayerVersion, ILayerVersion
 from aws_cdk.aws_apigatewayv2 import CfnApi
 from aws_cdk.aws_sns import Topic
-from aws_cdk.aws_cognito import UserPoolClient
+from aws_cdk.aws_cognito import UserPoolClient, UserPool
 
 from ..awsutil.aws_check_util import LambdaLayerChecker
 
@@ -69,6 +69,11 @@ class ReferenceSolver:
                     **cognito_spec,
                     "user_pool_url": self._solve_user_pool_url(
                         cognito_spec["user_pool_id"]
+                    ),
+                    "user_pool": UserPool.from_user_pool_id(
+                        self.scope,
+                        cognito_spec["user_pool_id"],
+                        cognito_spec["user_pool_id"],
                     ),
                 }
                 for user, cognito_spec in ref_spec["cognito"].items()
