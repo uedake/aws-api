@@ -50,6 +50,9 @@ class AmplifyCreator:
                 environment_variables=[
                     {"name": "REACT_APP_" + key, "value": val}
                     for key, val in stage_dict["env"].items()
+                ]+[
+                    {"name": "VITE_" + key, "value": val}
+                    for key, val in stage_dict["env"].items()
                 ],
             )
             branch_list.append(branch)
@@ -71,7 +74,11 @@ class AmplifyCreator:
         self.app = app
 
     def create_cognito_login_page(self, user_pool: UserPool) -> UserPoolClient:
-        callback_urls = ["http://localhost:3000/"] + [
+        """
+        localhost:3000 for CRA
+        localhost:5173 for Vite
+        """
+        callback_urls = ["http://localhost:3000/","http://localhost:5173/"] + [
             f"https://{branch}.{self.app.name}.{self.domain_name}/"
             for branch in self.branch_dict.keys()
         ]
