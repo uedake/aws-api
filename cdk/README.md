@@ -122,14 +122,16 @@ Amplifyの環境変数は.envファイルに設定されるので、dotenvパッ
 ### Amplify
 - Amplifyのソースコードはgithubに置かれることを前提とし、CI/CDを構築します
 - cdk実行前に下記操作をしてください
-　- githubに「Amplify GitHub アプリケーション」をインストールし、対象リポジトリへのアクセスを許可
-    - amplify consoleから行うのが簡便。適当なamplifyアプリを作成しgithubとつなげることで設定が作成可能
   - githubでpatを作成し、cdkを実行するマシンの環境変数GITHUB_PATに設定
+    - patの権限には、webhookのRW権限とcontentsのRW権限をつけること
   - レポジトリのユーザーURL（`https://github.com/hogehoge`の形式）を`spec["repository_root"]`に設定
   - `spec["amplify"]`のキー（app_name）と同じ名前でレポジトリを作成
+  - 注：cdkを用いてgithubとamplifyを連携した場合は、githubに「Amplify GitHub アプリケーション」をインストールするのは不要
+
 - cdk実行後に下記のいずれかの方法でデプロイをしてください
   - 方法１）レポジトリにコードをpushする
   - 方法２）Amplifyのコンソール上でデプロイを指示する
+
 
 ## インストール
 
